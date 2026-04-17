@@ -253,8 +253,8 @@
   };
 
   xdg.configFile."hypr/hyprpaper.conf".text = ''
-    preload = /home/a/wallhaven-d8e373.jpg
-    wallpaper = ,/home/a/wallhaven-d8e373.jpg
+    preload = /home/a/Wallpapers/wallhaven-d8e373.jpg
+    wallpaper = eDP-1,/home/a/Wallpapers/wallhaven-d8e373.jpg
   '';
 
   services.mako = {
