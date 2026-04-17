@@ -12,6 +12,7 @@
     kdePackages.kate
     google-chrome
     mpv
+    pavucontrol
   ];
 
   home.sessionVariables = {
