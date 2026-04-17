@@ -7,6 +7,7 @@
     wl-clipboard          # Clipboard utilities
     mako                  # Notification daemon
     networkmanagerapplet  # WiFi/network tray applet
+    hyprpaper             # Wallpaper daemon
   ];
 
   wayland.windowManager.hyprland = {
@@ -83,6 +84,7 @@
 
       # Autostart
       exec-once = [
+        "hyprpaper"
         "waybar"
         "mako"
         "nm-applet --indicator"
@@ -249,6 +251,11 @@
       }
     '';
   };
+
+  xdg.configFile."hypr/hyprpaper.conf".text = ''
+    preload = /home/a/wallhaven-d8e373.jpg
+    wallpaper = ,/home/a/wallhaven-d8e373.jpg
+  '';
 
   services.mako = {
     enable = true;
