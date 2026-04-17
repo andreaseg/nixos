@@ -12,11 +12,11 @@
       (overlay
         (box :class "clock-face")
         (box :class "hand hour-hand"
-             :style "transform: rotate(${(hours % 12) * 30 + minutes * 0.5}deg);")
+             :style "transform: rotate(''${(hours % 12) * 30 + minutes * 0.5}deg);")
         (box :class "hand minute-hand"
-             :style "transform: rotate(${minutes * 6}deg);")
+             :style "transform: rotate(''${minutes * 6}deg);")
         (box :class "hand second-hand"
-             :style "transform: rotate(${seconds * 6}deg);")))
+             :style "transform: rotate(''${seconds * 6}deg);")))
 
     (defwindow clock
       :monitor 0
