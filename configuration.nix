@@ -9,6 +9,7 @@
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
       ./features/razer.nix
+      ./features/anki.nix
     ];
 
   # Bootloader.
@@ -96,7 +97,6 @@
     neofetch
     neovim
     kitty
-    anki-bin
     google-chrome
     mpv
     claude-code
@@ -106,13 +106,6 @@
   environment.sessionVariables = {
     TERMINAL = "kitty";
   };
-
-  fonts.packages = with pkgs; [
-    noto-fonts
-    noto-fonts-cjk-sans
-    noto-fonts-cjk-serif
-    noto-fonts-color-emoji
-  ];
 
   # Some programs need SUID wrappers, can be configured further or are
   # started in user sessions.
