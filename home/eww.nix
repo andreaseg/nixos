@@ -25,7 +25,7 @@
         :y "20px"
         :width "150px"
         :height "150px"
-        :anchor "top right")
+        :anchor "top left")
       :stacking "bottom"
       :exclusive false
       (clock))
@@ -36,7 +36,7 @@
       min-width: 150px;
       min-height: 150px;
       border-radius: 50%;
-      background: rgba(30, 30, 46, 0.85);
+      background: rgba(0, 0, 0, 0);
       border: 2px solid rgba(255, 255, 255, 0.2);
     }
 
