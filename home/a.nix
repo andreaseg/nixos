@@ -26,6 +26,9 @@
 
   programs.bash = {
     enable = true;
+    shellAliases = {
+      vim = "nvim";
+    };
     initExtra = ''
       nrs() {
         if ! git -C ~/nixos-config diff --quiet || ! git -C ~/nixos-config diff --cached --quiet; then
