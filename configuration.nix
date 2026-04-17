@@ -8,6 +8,7 @@
   imports =
     [ # Include the results of the hardware scan.
       ./hardware-configuration.nix
+      ./features/razer.nix
     ];
 
   # Bootloader.
@@ -29,9 +30,6 @@
 
   # Select internationalisation properties.
   i18n.defaultLocale = "en_US.UTF-8";
-
-  hardware.openrazer.enable = true;
-  hardware.openrazer.users = ["a"];
 
   # Enable the X11 windowing system.
   # You can disable this if you're only using the Wayland session.
@@ -76,7 +74,7 @@
   users.users.a = {
     isNormalUser = true;
     description = "A";
-    extraGroups = [ "networkmanager" "wheel" "openrazer" "plugdev" ];
+    extraGroups = [ "networkmanager" "wheel" ];
     packages = with pkgs; [
       kdePackages.kate
     #  thunderbird
@@ -97,8 +95,6 @@
     htop
     neofetch
     neovim
-    openrazer-daemon
-    polychromatic
     kitty
     anki-bin
     google-chrome
