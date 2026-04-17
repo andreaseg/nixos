@@ -16,7 +16,6 @@
         hx = cx + 38 * sin(hour_a); hy = cy - 38 * cos(hour_a);
         mx = cx + 55 * sin(min_a);  my = cy - 55 * cos(min_a);
         print "<svg width=\"150\" height=\"150\" xmlns=\"http://www.w3.org/2000/svg\">";
-        print "  <circle cx=\""cx"\" cy=\""cy"\" r=\"70\" fill=\"none\" stroke=\"rgba(255,255,255,0.3)\" stroke-width=\"1\"/>";
         for (i = 0; i < 12; i++) {
           a = i * 30 * pi / 180;
           x1 = cx + 63 * sin(a); y1 = cy - 63 * cos(a);
