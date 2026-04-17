@@ -2,10 +2,11 @@
 
 {
   home.packages = with pkgs; [
-    grim          # Screenshot tool
-    slurp         # Region selector
-    wl-clipboard  # Clipboard utilities
-    mako          # Notification daemon
+    grim                  # Screenshot tool
+    slurp                 # Region selector
+    wl-clipboard          # Clipboard utilities
+    mako                  # Notification daemon
+    networkmanagerapplet  # WiFi/network tray applet
   ];
 
   wayland.windowManager.hyprland = {
@@ -84,6 +85,7 @@
       exec-once = [
         "waybar"
         "mako"
+        "nm-applet --indicator"
       ];
 
       # Keybindings
