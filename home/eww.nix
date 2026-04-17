@@ -49,4 +49,10 @@
       :exclusive false
       (clock))
   '';
+
+  xdg.configFile."eww/eww.scss".text = ''
+    * {
+      background-color: transparent;
+    }
+  '';
 }
