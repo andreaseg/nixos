@@ -160,12 +160,12 @@
         layer = "top";
         position = "top";
         height = 30;
-        modules-left = [ "hyprland/workspaces" "hyprland/window" ];
-        modules-center = [ "clock" ];
-        modules-right = [ "pulseaudio" "network" "battery" "tray" ];
+        modules-left = [ "hyprland/workspaces" ];
+        modules-center = [ "hyprland/window" ];
+        modules-right = [ "pulseaudio" "network" "battery" "tray" "clock"];
 
         clock = {
-          format = "{:%H:%M  %Y-%m-%d}";
+          format = "{:%H:%M}";
         };
 
         pulseaudio = {
