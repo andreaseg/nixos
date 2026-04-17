@@ -3,6 +3,7 @@
 {
   imports = [
     ./hyprland.nix
+    ./eww.nix
   ];
 
   home.username = "a";

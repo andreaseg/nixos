@@ -88,6 +88,7 @@
         "waybar"
         "mako"
         "nm-applet --indicator"
+        "eww open clock"
       ];
 
       # Keybindings
