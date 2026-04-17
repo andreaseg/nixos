@@ -13,6 +13,7 @@
     google-chrome
     mpv
     pavucontrol
+    nerd-fonts.symbols-only
   ];
 
   home.sessionVariables = {
