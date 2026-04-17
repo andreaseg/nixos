@@ -6,11 +6,19 @@
 
   home.packages = with pkgs; [
     kdePackages.kate
+    google-chrome
+    mpv
   ];
 
-  # Let Home Manager manage itself
+  home.sessionVariables = {
+    TERMINAL = "kitty";
+  };
+
   programs.home-manager.enable = true;
 
-  # https://nixos.wiki/wiki/FAQ/When_do_I_update_stateVersion
+  programs.kitty.enable = true;
+
+  programs.git.enable = true;
+
   home.stateVersion = "25.11";
 }

@@ -7,6 +7,9 @@
     ../../modules/anki.nix
   ];
 
+  # Nix settings
+  nix.settings.experimental-features = [ "nix-command" "flakes" ];
+
   # Bootloader
   boot.loader.systemd-boot.enable = true;
   boot.loader.efi.canTouchEfiVariables = true;
@@ -55,23 +58,18 @@
   # Programs
   programs.firefox.enable = true;
 
+  programs.neovim = {
+    enable = true;
+    defaultEditor = true;
+  };
+
   # Packages
   nixpkgs.config.allowUnfree = true;
 
   environment.systemPackages = with pkgs; [
     htop
-    neofetch
-    neovim
-    kitty
-    google-chrome
-    mpv
     claude-code
-    git
   ];
-
-  environment.sessionVariables = {
-    TERMINAL = "kitty";
-  };
 
   system.stateVersion = "25.11";
 }
