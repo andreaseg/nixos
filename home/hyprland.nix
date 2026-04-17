@@ -17,6 +17,20 @@
 
       monitor = ",preferred,auto,1";
 
+      # NVIDIA-specific environment variables
+      env = [
+        "LIBVA_DRIVER_NAME,nvidia"
+        "XDG_SESSION_TYPE,wayland"
+        "GBM_BACKEND,nvidia-drm"
+        "__GLX_VENDOR_LIBRARY_NAME,nvidia"
+        "NVD_BACKEND,direct"
+        "ELECTRON_OZONE_PLATFORM_HINT,auto"
+      ];
+
+      cursor = {
+        no_hardware_cursors = true;
+      };
+
       general = {
         gaps_in = 5;
         gaps_out = 10;
