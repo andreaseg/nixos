@@ -32,7 +32,11 @@
   # Desktop environment
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
+  services.displayManager.sddm.wayland.enable = true;
   services.desktopManager.plasma6.enable = true;
+
+  # Hyprland
+  programs.hyprland.enable = true;
 
   # Audio
   services.pulseaudio.enable = false;
