@@ -169,23 +169,23 @@
         };
 
         pulseaudio = {
-          format = "{volume}% {icon}";
-          format-muted = "muted";
+          format = "{icon}";
+          format-muted = "󰝟";
           format-icons = {
-            default = [ "" "" "" ];
+            default = [ "󰕿" "󰖀" "󰕾" ];
           };
           on-click = "pavucontrol";
         };
 
         network = {
-          format-wifi = "{essid} ({signalStrength}%)";
-          format-ethernet = "Connected";
-          format-disconnected = "Disconnected";
+          format-wifi = "󰤨";
+          format-ethernet = "󰈀";
+          format-disconnected = "󰤭";
         };
 
         battery = {
-          format = "{capacity}% {icon}";
-          format-icons = [ "" "" "" "" "" ];
+          format = "{icon}";
+          format-icons = [ "󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹" ];
         };
 
         tray = {
