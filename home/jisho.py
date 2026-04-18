@@ -35,7 +35,7 @@ JISHO_CONFIG_FILE = Path.home() / ".config" / "jisho" / "config.json"
 
 @dataclass
 class Colors:
-    title: str = "bold cyan"
+    title: str = "white"
     badge_anki: str = "bold green"
     badge_wk: str = "bold magenta"
     badge_common: str = "green"
@@ -802,8 +802,10 @@ class CompactFormatter:
             result.kanji if self.verbose
             else [k for k in result.kanji if k.unknown]
         )
-        for entry in kanji:
-            self._render_kanji(entry)
+        if kanji:
+            self.console.print("[dim]── Kanji ──[/dim]")
+            for entry in kanji:
+                self._render_kanji(entry)
 
     def _render_vocab(self, entry: VocabEntry) -> None:
         c = self.colors
@@ -812,9 +814,11 @@ class CompactFormatter:
         line.append(entry.word or entry.reading, style=c.title)
         if entry.word:
             line.append(f" {entry.reading}", style=c.text_label)
-        line.append(f" {', '.join(entry.meanings)}")
+        line.append(
+            f" {', '.join(entry.meanings)}", style=c.text_value
+        )
         if entry.in_anki:
-            line.append(f"  {b.anki}", style=c.badge_anki)
+            line.append("  A", style=c.badge_anki)
         if entry.wk_level is not None:
             wk = f"{b.wk_prefix}{entry.wk_level}"
             if entry.wk_burned:
@@ -838,9 +842,11 @@ class CompactFormatter:
         if readings:
             line.append(f" {readings}", style=c.text_label)
         if entry.meanings:
-            line.append(f" {', '.join(entry.meanings)}")
+            line.append(
+                f" {', '.join(entry.meanings)}", style=c.text_value
+            )
         if entry.in_anki:
-            line.append(f"  {b.anki}", style=c.badge_anki)
+            line.append("  A", style=c.badge_anki)
         if entry.wk_level is not None:
             wk = f"{b.wk_prefix}{entry.wk_level}"
             if entry.wk_burned:

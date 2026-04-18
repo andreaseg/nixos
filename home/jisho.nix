@@ -12,7 +12,7 @@ in
     enable = lib.mkEnableOption "jisho Japanese dictionary CLI";
 
     colors = {
-      title    = strOpt "bold cyan";
+      title    = strOpt "white";
       badge = {
         anki     = strOpt "bold green";
         wanikani = strOpt "bold magenta";

@@ -51,7 +51,7 @@ def test_extract_kanji_no_kanji():
 
 def test_parse_colors_defaults():
     c = jisho._parse_colors({})
-    assert c.title == "bold cyan"
+    assert c.title == "white"
     assert c.badge_anki == "bold green"
     assert c.badge_wk == "bold magenta"
     assert c.border_default == "blue"
