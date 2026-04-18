@@ -41,10 +41,10 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family      = "Victor Mono SemiBold";
-      italic_font      = "Victor Mono SemiBold Italic";
-      bold_font        = "Victor Mono Bold";
-      bold_italic_font = "Victor Mono Bold Italic";
+      font_family      = "VictorMono Nerd Font SemiBold";
+      italic_font      = "VictorMono Nerd Font SemiBold Italic";
+      bold_font        = "VictorMono Nerd Font Bold";
+      bold_italic_font = "VictorMono Nerd Font Bold Italic";
       font_size        = "11.0";
 
       # Black
