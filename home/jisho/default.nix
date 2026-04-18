@@ -124,7 +124,7 @@ in
         nativeCheckInputs = [ pkgs.python3Packages.pytest ];
         checkPhase = ''
           runHook preCheck
-          PYTHONPATH=src pytest tests/ -q
+          pytest tests/ -q
           runHook postCheck
         '';
       })
