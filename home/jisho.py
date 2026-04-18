@@ -62,6 +62,13 @@ def lookup_kanji_data(kanji):
     return resp.json()
 
 
+def to_katakana(text):
+    return "".join(
+        chr(ord(c) + 0x60) if "\u3041" <= c <= "\u3096" else c
+        for c in text
+    )
+
+
 def extract_kanji(text):
     return list(dict.fromkeys(c for c in text if "\u4e00" <= c <= "\u9fff"))
 
@@ -164,7 +171,8 @@ def render_kanji_entry(kanji, wk_subject, kanji_data, console):
         wk_data = wk_subject["data"]
         meanings = [m["meaning"] for m in wk_data.get("meanings", [])]
         on_r = [
-            r["reading"] for r in wk_data.get("readings", [])
+            to_katakana(r["reading"])
+            for r in wk_data.get("readings", [])
             if r.get("type") == "onyomi"
         ]
         kun_r = [
@@ -181,7 +189,7 @@ def render_kanji_entry(kanji, wk_subject, kanji_data, console):
             body.append(", ".join(kun_r) + "\n", style="white")
     elif kanji_data:
         meanings = kanji_data.get("meanings", [])
-        on_r = kanji_data.get("on_readings", [])
+        on_r = [to_katakana(r) for r in kanji_data.get("on_readings", [])]
         kun_r = kanji_data.get("kun_readings", [])
         body.append("  Meanings: ", style="italic dim")
         body.append(", ".join(meanings) + "\n", style="white")
