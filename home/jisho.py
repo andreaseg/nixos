@@ -12,22 +12,25 @@ from rich.panel import Panel
 from rich.rule import Rule
 from rich.text import Text
 
+# ── Constants ────────────────────────────────────────────────────────────────
+
+# WaniKani
 WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"
 WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
 
+# KanjiAPI — KANJIDIC2-backed, the same data source Jisho uses internally
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
-JISHO_CONFIG_FILE = (
-    Path.home() / ".config" / "jisho" / "config.json"
-)
 
+# AnkiConnect — local REST bridge bundled as an Anki add-on
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
 
-DEFAULT_ANKI_FIELDS: dict[str, str] = {}
+# Tool config — written by the Nix module at build time
+JISHO_CONFIG_FILE = Path.home() / ".config" / "jisho" / "config.json"
 
 
-# ── Colors ───────────────────────────────────────────────────────────────────
+# ── Config ───────────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -118,9 +121,7 @@ def _parse_cache(raw: dict) -> Cache:
 
 
 def load_config() -> Config:
-    fallback = Config(
-        Colors(), Badges(), dict(DEFAULT_ANKI_FIELDS), Cache()
-    )
+    fallback = Config(Colors(), Badges(), {}, Cache())
     if not JISHO_CONFIG_FILE.exists():
         return fallback
     try:
@@ -129,16 +130,14 @@ def load_config() -> Config:
         return Config(
             colors=_parse_colors(raw.get("colors", {})),
             badges=_parse_badges(raw.get("badges", {})),
-            anki_fields=anki.get(
-                "fields", dict(DEFAULT_ANKI_FIELDS)
-            ),
+            anki_fields=anki.get("fields", {}),
             cache=_parse_cache(raw.get("cache", {})),
         )
     except (json.JSONDecodeError, KeyError):
         return fallback
 
 
-# ── Dataclasses ──────────────────────────────────────────────────────────────
+# ── Domain model ─────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -180,6 +179,9 @@ class LookupResult:
 
 
 def to_katakana(text: str) -> str:
+    # Hiragana (U+3041–U+3096) and katakana (U+30A1–U+30F6) share the
+    # same glyph layout with a fixed offset of 0x60, so we can convert
+    # by arithmetic rather than a lookup table.
     return "".join(
         chr(ord(c) + 0x60) if "\u3041" <= c <= "\u3096" else c
         for c in text
@@ -187,6 +189,8 @@ def to_katakana(text: str) -> str:
 
 
 def extract_kanji(text: str) -> list[str]:
+    # dict.fromkeys preserves first-occurrence order while deduplicating,
+    # which a plain set() does not guarantee.
     return list(
         dict.fromkeys(c for c in text if "\u4e00" <= c <= "\u9fff")
     )
@@ -201,7 +205,7 @@ def get_wanikani_token() -> str | None:
     return None
 
 
-# ── WaniKani cache ───────────────────────────────────────────────────────────
+# ── WaniKani ─────────────────────────────────────────────────────────────────
 
 
 def wk_fetch_pages(url: str, token: str) -> list[dict]:
@@ -230,8 +234,14 @@ def wk_fetch_all(token: str) -> dict | None:
             f"{WANIKANI_API}/assignments?burned=true",
             token,
         )
+        # Burned status lives on assignments, not subjects, requiring a
+        # separate request. We only fetch burned=true to keep the payload
+        # small — we display burn status but not SRS stage.
         burned_ids = {a["data"]["subject_id"] for a in assignments}
 
+        # Vocabulary and kanji are keyed separately because the same slug
+        # (e.g. "猫") can appear in both dicts. A shared dict would cause
+        # one entry to silently overwrite the other.
         vocabulary: dict[str, dict] = {}
         kanji: dict[str, dict] = {}
 
@@ -292,9 +302,11 @@ def wk_save_cache(data: dict) -> None:
 
 
 def get_wk_subjects(token: str | None, ttl: int) -> dict:
-    """Return cached WaniKani subjects, refreshing when possible."""
     empty = {"vocabulary": {}, "kanji": {}}
+
     if not token:
+        # No token — show whatever is cached rather than empty results.
+        # This lets the tool work offline with the last known WK state.
         result = wk_load_cache(ttl)
         return result[0] if result else empty
 
@@ -308,11 +320,12 @@ def get_wk_subjects(token: str | None, ttl: int) -> dict:
         wk_save_cache(fresh)
         return fresh
 
-    # Fetch failed — fall back to stale cache rather than losing data
+    # A fetch failure should not wipe out WaniKani enrichment — fall back
+    # to whatever we last cached rather than silently returning nothing.
     return cached[0] if cached else empty
 
 
-# ── Anki cache ───────────────────────────────────────────────────────────────
+# ── Anki ─────────────────────────────────────────────────────────────────────
 
 
 def anki_request(action: str, **params) -> object:
@@ -388,14 +401,15 @@ def get_anki_words(
         ]
     words, is_stale = cached
     if is_stale:
+        stale_days = stale // 86400
         return words, [
-            "Anki cache is stale (>7 days) —"
+            f"Anki cache is stale (>{stale_days}d) —"
             " start Anki to refresh it."
         ]
     return words, []
 
 
-# ── External lookups ─────────────────────────────────────────────────────────
+# ── API calls ────────────────────────────────────────────────────────────────
 
 
 def search_jisho(query: str) -> list[dict]:
@@ -437,6 +451,8 @@ def parse_vocab_entry(
 
     if wk_subject:
         wk_readings = wk_subject["readings"]
+        # Prefer WaniKani's reading: WK teaches one canonical reading,
+        # while Jisho may surface a different (also valid) reading first.
         if wk_readings:
             reading = wk_readings[0]
         return VocabEntry(
@@ -471,6 +487,8 @@ def parse_kanji_entry(
     kanji_data: dict | None,
     in_anki: bool = False,
 ) -> KanjiEntry:
+    # jouyou grade comes from kanjiapi regardless of which source we use
+    # for meanings/readings, so compute it up front.
     is_jouyou = (
         kanji_data is not None and kanji_data.get("grade") is not None
     )
@@ -491,8 +509,11 @@ def parse_kanji_entry(
         return KanjiEntry(
             character=kanji,
             meanings=kanji_data.get("meanings", []),
+            # kanjiapi returns on-readings in hiragana; convert to
+            # katakana to match convention (and WaniKani's format).
             on_readings=[
-                to_katakana(r) for r in kanji_data.get("on_readings", [])
+                to_katakana(r)
+                for r in kanji_data.get("on_readings", [])
             ],
             kun_readings=kanji_data.get("kun_readings", []),
             is_jouyou=is_jouyou,
@@ -525,20 +546,24 @@ def lookup(
 
     in_anki = query in anki_words
     exact = [r for r in results if is_exact_match(r, query)]
+
+    # When the query has an exact match, show only those entries.
+    # Without this filter, Jisho returns loosely related results that
+    # would flood the output for common words.
     to_show = exact if exact else results[:5]
 
     wk_vocab: dict | None = None
-    wk_readings_set: set[str] = set()
     if exact:
         jisho_reading = (
             exact[0].get("japanese", [{}])[0].get("reading", "")
         )
         wk_candidate = wk_subjects["vocabulary"].get(query)
         if wk_candidate:
-            candidate_readings = set(wk_candidate["readings"])
-            if jisho_reading in candidate_readings:
+            # Verify Jisho's reading against WaniKani's before enriching.
+            # The same written form can have multiple readings (e.g. 上手
+            # as じょうず vs うまい), so a slug match alone is not enough.
+            if jisho_reading in wk_candidate["readings"]:
                 wk_vocab = wk_candidate
-                wk_readings_set = candidate_readings
 
     vocabulary: list[VocabEntry] = []
     for raw in to_show:
@@ -549,7 +574,7 @@ def lookup(
         use_wk = (
             wk_vocab is not None
             and is_match
-            and reading in wk_readings_set
+            and reading in wk_vocab["readings"]
         )
         vocabulary.append(parse_vocab_entry(
             raw,
@@ -558,7 +583,7 @@ def lookup(
         ))
 
     kanji_chars = extract_kanji(query)
-    wk_kanji_cache = {
+    wk_kanji = {
         k: wk_subjects["kanji"][k]
         for k in kanji_chars
         if k in wk_subjects["kanji"]
@@ -570,9 +595,11 @@ def lookup(
             kanji_data = lookup_kanji_data(char)
         except requests.RequestException:
             kanji_data = None
+        # Mark a kanji as known if it appears in any Anki word, not just
+        # as a standalone card — knowing 猫缶 implies exposure to 猫.
         char_in_anki = any(char in word for word in anki_words)
         kanji.append(parse_kanji_entry(
-            char, wk_kanji_cache.get(char), kanji_data,
+            char, wk_kanji.get(char), kanji_data,
             in_anki=char_in_anki,
         ))
 
@@ -616,6 +643,12 @@ class RichFormatter:
                 self._render_kanji(entry)
                 self.console.print()
 
+    def _wk_badge_text(self, level: int, burned: bool) -> str:
+        text = f"{self.badges.wk_prefix}{level}"
+        if burned:
+            text += self.badges.burned
+        return text
+
     def _render_vocab(self, entry: VocabEntry) -> None:
         c = self.colors
         b = self.badges
@@ -627,10 +660,10 @@ class RichFormatter:
             badges.append(b.anki, style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
-            wk_badge = f"{b.wk_prefix}{entry.wk_level}"
-            if entry.wk_burned:
-                wk_badge += b.burned
-            badges.append(wk_badge, style=c.badge_wk)
+            badges.append(
+                self._wk_badge_text(entry.wk_level, entry.wk_burned),
+                style=c.badge_wk,
+            )
             badges.append("  ")
         if entry.is_common:
             badges.append(b.common, style=c.badge_common)
@@ -650,6 +683,7 @@ class RichFormatter:
             ", ".join(entry.meanings) + "\n", style=c.text_value
         )
 
+        # Border colour reflects data source priority: Anki > WK > default
         border = c.border_anki if entry.in_anki else (
             c.border_wk if entry.wk_level is not None
             else c.border_default
@@ -673,10 +707,10 @@ class RichFormatter:
             badges.append(b.anki, style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
-            wk_badge = f"{b.wk_prefix}{entry.wk_level}"
-            if entry.wk_burned:
-                wk_badge += b.burned
-            badges.append(wk_badge, style=c.badge_wk)
+            badges.append(
+                self._wk_badge_text(entry.wk_level, entry.wk_burned),
+                style=c.badge_wk,
+            )
         else:
             badges.append(b.not_in_wk, style=c.badge_warning)
         if not entry.is_jouyou:
@@ -684,28 +718,31 @@ class RichFormatter:
             badges.append(b.not_jouyou, style=c.badge_danger)
 
         body = Text()
-        if entry.meanings:
-            body.append("  Meanings: ", style=c.text_label)
-            body.append(
-                ", ".join(entry.meanings) + "\n", style=c.text_value
-            )
-        if entry.on_readings:
-            body.append("  On: ", style=c.text_label)
-            body.append(
-                ", ".join(entry.on_readings) + "\n",
-                style=c.text_value,
-            )
-        if entry.kun_readings:
-            body.append("  Kun: ", style=c.text_label)
-            body.append(
-                ", ".join(entry.kun_readings) + "\n",
-                style=c.text_value,
-            )
-        if not entry.meanings:
+        if entry.meanings or entry.on_readings or entry.kun_readings:
+            if entry.meanings:
+                body.append("  Meanings: ", style=c.text_label)
+                body.append(
+                    ", ".join(entry.meanings) + "\n",
+                    style=c.text_value,
+                )
+            if entry.on_readings:
+                body.append("  On: ", style=c.text_label)
+                body.append(
+                    ", ".join(entry.on_readings) + "\n",
+                    style=c.text_value,
+                )
+            if entry.kun_readings:
+                body.append("  Kun: ", style=c.text_label)
+                body.append(
+                    ", ".join(entry.kun_readings) + "\n",
+                    style=c.text_value,
+                )
+        else:
             body.append("  No data found\n", style="dim")
 
+        content = Text.assemble(badges, "\n\n", body) if badges else body
         self.console.print(Panel(
-            Text.assemble(badges, "\n\n", body),
+            content,
             title=title,
             title_align="left",
             border_style=(
