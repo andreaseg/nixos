@@ -169,7 +169,13 @@
         height = 30;
         modules-left = [ "hyprland/workspaces" ];
         modules-center = [ "hyprland/window" ];
-        modules-right = [ "pulseaudio" "network" "battery" "tray" "clock"];
+        modules-right = [ "custom/ime" "pulseaudio" "network" "battery" "tray" "clock"];
+
+        "custom/ime" = {
+          exec = "fcitx5-remote | awk '{print ($1==2) ? \"あ\" : \"A\"}'";
+          interval = 1;
+          format = "{}";
+        };
 
         clock = {
           format = "{:%H:%M}";
