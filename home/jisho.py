@@ -12,7 +12,11 @@ from rich.text import Text
 
 WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"
+WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
+WK_CACHE_TTL = 604800  # 7 days in seconds
+
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
+
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
 ANKI_CACHE_TTL = 86400  # 1 day in seconds
@@ -41,6 +45,7 @@ class VocabEntry:
     wk_level: int | None = None
     wk_meanings: list[str] | None = None
     wk_readings: list[str] | None = None
+    burned: bool = False
     in_anki: bool = False
 
 
@@ -52,6 +57,7 @@ class KanjiEntry:
     kun_readings: list[str]
     is_jouyou: bool
     wk_level: int | None = None
+    burned: bool = False
 
 
 def to_katakana(text: str) -> str:
@@ -76,6 +82,120 @@ def get_wanikani_token() -> str | None:
     return None
 
 
+# ── WaniKani cache ───────────────────────────────────────────────────────────
+
+
+def wk_fetch_pages(url: str, token: str) -> list[dict]:
+    items: list[dict] = []
+    next_url: str | None = url
+    while next_url:
+        resp = requests.get(
+            next_url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        items.extend(body["data"])
+        next_url = body["pages"].get("next_url")
+    return items
+
+
+def wk_fetch_all(token: str) -> dict | None:
+    try:
+        subjects = wk_fetch_pages(
+            f"{WANIKANI_API}/subjects?types=vocabulary,kanji",
+            token,
+        )
+        assignments = wk_fetch_pages(
+            f"{WANIKANI_API}/assignments?burned=true",
+            token,
+        )
+        burned_ids = {a["data"]["subject_id"] for a in assignments}
+
+        vocabulary: dict[str, dict] = {}
+        kanji: dict[str, dict] = {}
+
+        for subject in subjects:
+            data = subject["data"]
+            slug = data["slug"]
+            burned = subject["id"] in burned_ids
+            meanings = [m["meaning"] for m in data.get("meanings", [])]
+            readings = data.get("readings", [])
+
+            if subject["object"] == "vocabulary":
+                vocabulary[slug] = {
+                    "level": data["level"],
+                    "meanings": meanings,
+                    "readings": [r["reading"] for r in readings],
+                    "burned": burned,
+                }
+            else:
+                kanji[slug] = {
+                    "level": data["level"],
+                    "meanings": meanings,
+                    "on_readings": [
+                        to_katakana(r["reading"])
+                        for r in readings
+                        if r.get("type") == "onyomi"
+                    ],
+                    "kun_readings": [
+                        r["reading"]
+                        for r in readings
+                        if r.get("type") == "kunyomi"
+                    ],
+                    "burned": burned,
+                }
+
+        return {"vocabulary": vocabulary, "kanji": kanji}
+    except (requests.RequestException, KeyError):
+        return None
+
+
+def wk_load_cache() -> tuple[dict, bool] | None:
+    """Return (data, is_expired), or None if no cache file exists."""
+    if not WK_CACHE_FILE.exists():
+        return None
+    try:
+        raw = json.loads(WK_CACHE_FILE.read_text())
+        expired = time.time() - raw["timestamp"] > WK_CACHE_TTL
+        return raw["data"], expired
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def wk_save_cache(data: dict) -> None:
+    WK_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    WK_CACHE_FILE.write_text(json.dumps({
+        "timestamp": time.time(),
+        "data": data,
+    }))
+
+
+def get_wk_subjects(token: str | None) -> dict:
+    """Return cached WaniKani subjects, refreshing when possible."""
+    empty = {"vocabulary": {}, "kanji": {}}
+    if not token:
+        result = wk_load_cache()
+        return result[0] if result else empty
+
+    cached = wk_load_cache()
+
+    if cached and not cached[1]:
+        return cached[0]
+
+    fresh = wk_fetch_all(token)
+    if fresh is not None:
+        wk_save_cache(fresh)
+        return fresh
+
+    # Fetch failed — fall back to stale cache rather than losing data
+    return cached[0] if cached else empty
+
+
+# ── Anki cache ──────────────────────────────────────────────────────────────
+
+
 def anki_request(action: str, **params) -> object:
     payload = {"action": action, "version": 6, "params": params}
     resp = requests.post(ANKI_CONNECT, json=payload, timeout=3)
@@ -86,27 +206,7 @@ def anki_request(action: str, **params) -> object:
     return result["result"]
 
 
-def load_anki_cache() -> set[str] | None:
-    if not ANKI_CACHE_FILE.exists():
-        return None
-    try:
-        data = json.loads(ANKI_CACHE_FILE.read_text())
-        if time.time() - data["timestamp"] > ANKI_CACHE_TTL:
-            return None
-        return set(data["words"])
-    except (json.JSONDecodeError, KeyError):
-        return None
-
-
-def save_anki_cache(words: set[str]) -> None:
-    ANKI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    ANKI_CACHE_FILE.write_text(json.dumps({
-        "timestamp": time.time(),
-        "words": list(words),
-    }))
-
-
-def fetch_anki_words() -> set[str] | None:
+def anki_fetch_words() -> set[str] | None:
     try:
         words: set[str] = set()
         for note_type, field_name in ANKI_VOCAB_FIELDS.items():
@@ -130,17 +230,40 @@ def fetch_anki_words() -> set[str] | None:
         return None
 
 
+def anki_load_cache() -> set[str] | None:
+    if not ANKI_CACHE_FILE.exists():
+        return None
+    try:
+        data = json.loads(ANKI_CACHE_FILE.read_text())
+        if time.time() - data["timestamp"] > ANKI_CACHE_TTL:
+            return None
+        return set(data["words"])
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def anki_save_cache(words: set[str]) -> None:
+    ANKI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ANKI_CACHE_FILE.write_text(json.dumps({
+        "timestamp": time.time(),
+        "words": list(words),
+    }))
+
+
 def get_anki_words() -> set[str]:
-    live = fetch_anki_words()
+    live = anki_fetch_words()
     if live is not None:
-        save_anki_cache(live)
+        anki_save_cache(live)
         return live
-    cached = load_anki_cache()
+    cached = anki_load_cache()
     return cached if cached is not None else set()
 
 
 def search_anki(query: str) -> bool:
     return query in get_anki_words()
+
+
+# ── Jisho ───────────────────────────────────────────────────────────────────
 
 
 def search_jisho(query: str) -> list[dict]:
@@ -151,31 +274,6 @@ def search_jisho(query: str) -> list[dict]:
     )
     resp.raise_for_status()
     return resp.json().get("data", [])
-
-
-def search_wanikani_vocab(query: str, token: str) -> dict | None:
-    resp = requests.get(
-        f"{WANIKANI_API}/subjects",
-        params={"types": "vocabulary,kanji", "slugs": query},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json().get("data", [])
-    return data[0] if data else None
-
-
-def search_wanikani_kanji(
-    kanji_list: list[str], token: str
-) -> dict[str, dict]:
-    resp = requests.get(
-        f"{WANIKANI_API}/subjects",
-        params={"types": "kanji", "slugs": ",".join(kanji_list)},
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return {s["data"]["slug"]: s for s in resp.json().get("data", [])}
 
 
 def lookup_kanji_data(kanji: str) -> dict | None:
@@ -193,6 +291,9 @@ def is_exact_match(raw: dict, query: str) -> bool:
     return False
 
 
+# ── Parsing ─────────────────────────────────────────────────────────────────
+
+
 def parse_vocab_entry(
     raw: dict,
     wk_subject: dict | None,
@@ -203,20 +304,16 @@ def parse_vocab_entry(
     reading = japanese[0].get("reading", "")
 
     if wk_subject:
-        wk_data = wk_subject["data"]
         return VocabEntry(
             word=word,
             reading=reading,
             is_common=raw.get("is_common", False),
             jlpt=raw.get("jlpt", []),
             senses=[],
-            wk_level=wk_data.get("level"),
-            wk_meanings=[
-                m["meaning"] for m in wk_data.get("meanings", [])
-            ],
-            wk_readings=[
-                r["reading"] for r in wk_data.get("readings", [])
-            ],
+            wk_level=wk_subject["level"],
+            wk_meanings=wk_subject["meanings"],
+            wk_readings=wk_subject["readings"],
+            burned=wk_subject["burned"],
             in_anki=in_anki,
         )
 
@@ -248,22 +345,14 @@ def parse_kanji_entry(
     )
 
     if wk_subject:
-        wk_data = wk_subject["data"]
         return KanjiEntry(
             character=kanji,
-            meanings=[m["meaning"] for m in wk_data.get("meanings", [])],
-            on_readings=[
-                to_katakana(r["reading"])
-                for r in wk_data.get("readings", [])
-                if r.get("type") == "onyomi"
-            ],
-            kun_readings=[
-                r["reading"]
-                for r in wk_data.get("readings", [])
-                if r.get("type") == "kunyomi"
-            ],
+            meanings=wk_subject["meanings"],
+            on_readings=wk_subject["on_readings"],
+            kun_readings=wk_subject["kun_readings"],
             is_jouyou=is_jouyou,
-            wk_level=wk_data.get("level"),
+            wk_level=wk_subject["level"],
+            burned=wk_subject["burned"],
         )
 
     if kanji_data:
@@ -286,6 +375,9 @@ def parse_kanji_entry(
     )
 
 
+# ── Rendering ───────────────────────────────────────────────────────────────
+
+
 def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
     title = Text()
     if entry.word:
@@ -300,9 +392,10 @@ def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
         badges.append("★ Anki", style="bold green")
         badges.append("  ")
     if entry.wk_level is not None:
-        badges.append(
-            f"⬡ WaniKani L{entry.wk_level}", style="bold magenta"
-        )
+        wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+        if entry.burned:
+            wk_badge += " 🔥"
+        badges.append(wk_badge, style="bold magenta")
         badges.append("  ")
     if entry.is_common:
         badges.append("● common", style="green")
@@ -358,9 +451,10 @@ def render_kanji_entry(entry: KanjiEntry, console: Console) -> None:
 
     badges = Text()
     if entry.wk_level is not None:
-        badges.append(
-            f"⬡ WaniKani L{entry.wk_level}", style="bold magenta"
-        )
+        wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+        if entry.burned:
+            wk_badge += " 🔥"
+        badges.append(wk_badge, style="bold magenta")
     else:
         badges.append("⚠ not in WaniKani", style="yellow")
     if not entry.is_jouyou:
@@ -389,6 +483,9 @@ def render_kanji_entry(entry: KanjiEntry, console: Console) -> None:
     ))
 
 
+# ── Main ───────────────────────────────────────────────────────────────────
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: jisho <query>")
@@ -408,6 +505,7 @@ def main() -> None:
         console.print(f"[yellow]No results for '{query}'[/yellow]")
         sys.exit(0)
 
+    wk_subjects = get_wk_subjects(token)
     in_anki = search_anki(query)
 
     exact = [r for r in results if is_exact_match(r, query)]
@@ -415,33 +513,27 @@ def main() -> None:
 
     wk_vocab: dict | None = None
     wk_readings_set: set[str] = set()
-    if token and exact:
-        try:
-            jisho_reading = (
-                exact[0].get("japanese", [{}])[0].get("reading", "")
-            )
-            wk_candidate = search_wanikani_vocab(query, token)
-            if wk_candidate:
-                candidate_readings = {
-                    r["reading"]
-                    for r in wk_candidate["data"].get("readings", [])
-                }
-                if jisho_reading in candidate_readings:
-                    wk_vocab = wk_candidate
-                    wk_readings_set = candidate_readings
-        except requests.RequestException:
-            pass
+    if exact:
+        jisho_reading = (
+            exact[0].get("japanese", [{}])[0].get("reading", "")
+        )
+        wk_candidate = wk_subjects["vocabulary"].get(query)
+        if wk_candidate:
+            candidate_readings = set(wk_candidate["readings"])
+            if jisho_reading in candidate_readings:
+                wk_vocab = wk_candidate
+                wk_readings_set = candidate_readings
 
     for raw in to_show:
         first = raw.get("japanese", [{}])[0]
         reading = first.get("reading", "")
         word = first.get("word", "")
+        is_match = word == query or reading == query
         use_wk = (
             wk_vocab is not None
-            and (word == query or reading == query)
+            and is_match
             and reading in wk_readings_set
         )
-        is_match = word == query or reading == query
         entry = parse_vocab_entry(
             raw,
             wk_vocab if use_wk else None,
@@ -454,12 +546,11 @@ def main() -> None:
     if not kanji_chars:
         return
 
-    wk_kanji: dict[str, dict] = {}
-    if token:
-        try:
-            wk_kanji = search_wanikani_kanji(kanji_chars, token)
-        except requests.RequestException:
-            pass
+    wk_kanji = {
+        k: wk_subjects["kanji"][k]
+        for k in kanji_chars
+        if k in wk_subjects["kanji"]
+    }
 
     console.print(Rule("Kanji", style="dim"))
     console.print()
