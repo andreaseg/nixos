@@ -11,6 +11,13 @@ from rich.text import Text
 WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
+ANKI_CONNECT = "http://localhost:8765"
+
+# Maps Anki note type names to the field containing the vocabulary word.
+# Add additional note types here as needed.
+ANKI_VOCAB_FIELDS: dict[str, str] = {
+    "Migaku Japanese CUSTOM STYLING": "Target Word Simplified",
+}
 
 
 @dataclass
@@ -30,6 +37,7 @@ class VocabEntry:
     wk_level: int | None = None
     wk_meanings: list[str] | None = None
     wk_readings: list[str] | None = None
+    in_anki: bool = False
 
 
 @dataclass
@@ -62,6 +70,28 @@ def get_wanikani_token() -> str | None:
     if WANIKANI_TOKEN_FILE.exists():
         return WANIKANI_TOKEN_FILE.read_text().strip()
     return None
+
+
+def anki_request(action: str, **params) -> object:
+    payload = {"action": action, "version": 6, "params": params}
+    resp = requests.post(ANKI_CONNECT, json=payload, timeout=3)
+    resp.raise_for_status()
+    result = resp.json()
+    if result.get("error"):
+        raise RuntimeError(result["error"])
+    return result["result"]
+
+
+def search_anki(query: str) -> bool:
+    try:
+        for note_type, field_name in ANKI_VOCAB_FIELDS.items():
+            search = f'note:"{note_type}" "{field_name}:{query}"'
+            note_ids = anki_request("findNotes", query=search)
+            if note_ids:
+                return True
+    except (requests.RequestException, RuntimeError, KeyError):
+        pass
+    return False
 
 
 def search_jisho(query: str) -> list[dict]:
@@ -114,7 +144,11 @@ def is_exact_match(raw: dict, query: str) -> bool:
     return False
 
 
-def parse_vocab_entry(raw: dict, wk_subject: dict | None) -> VocabEntry:
+def parse_vocab_entry(
+    raw: dict,
+    wk_subject: dict | None,
+    in_anki: bool = False,
+) -> VocabEntry:
     japanese = raw.get("japanese", [{}])
     word = japanese[0].get("word", "")
     reading = japanese[0].get("reading", "")
@@ -134,6 +168,7 @@ def parse_vocab_entry(raw: dict, wk_subject: dict | None) -> VocabEntry:
             wk_readings=[
                 r["reading"] for r in wk_data.get("readings", [])
             ],
+            in_anki=in_anki,
         )
 
     senses = [
@@ -150,6 +185,7 @@ def parse_vocab_entry(raw: dict, wk_subject: dict | None) -> VocabEntry:
         is_common=raw.get("is_common", False),
         jlpt=raw.get("jlpt", []),
         senses=senses,
+        in_anki=in_anki,
     )
 
 
@@ -211,6 +247,9 @@ def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
         title.append(entry.reading, style="bold cyan")
 
     badges = Text()
+    if entry.in_anki:
+        badges.append("★ Anki", style="bold green")
+        badges.append("  ")
     if entry.wk_level is not None:
         badges.append(
             f"⬡ WaniKani L{entry.wk_level}", style="bold magenta"
@@ -252,12 +291,15 @@ def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
                 )
             body.append("\n")
 
+    border = "green" if entry.in_anki else (
+        "magenta" if entry.wk_level is not None else "blue"
+    )
     content = Text.assemble(badges, "\n\n", body) if badges else body
     console.print(Panel(
         content,
         title=title,
         title_align="left",
-        border_style="magenta" if entry.wk_level is not None else "blue",
+        border_style=border,
         padding=(0, 1),
     ))
 
@@ -317,6 +359,8 @@ def main() -> None:
         console.print(f"[yellow]No results for '{query}'[/yellow]")
         sys.exit(0)
 
+    in_anki = search_anki(query)
+
     exact = [r for r in results if is_exact_match(r, query)]
     to_show = exact if exact else results[:5]
 
@@ -348,7 +392,12 @@ def main() -> None:
             and (word == query or reading == query)
             and reading in wk_readings_set
         )
-        entry = parse_vocab_entry(raw, wk_vocab if use_wk else None)
+        is_match = word == query or reading == query
+        entry = parse_vocab_entry(
+            raw,
+            wk_vocab if use_wk else None,
+            in_anki=in_anki and is_match,
+        )
         render_vocab_entry(entry, console)
         console.print()
 
