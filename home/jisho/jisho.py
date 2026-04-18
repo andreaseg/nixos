@@ -7,6 +7,7 @@ import requests
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Protocol
+from rich.cells import cell_len
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
@@ -781,9 +782,24 @@ class CompactFormatter:
         self.badges = badges
         self.verbose = verbose
 
+    def _col_width(self, values: list[str]) -> int:
+        """80th-percentile display width — caps outliers without truncating."""
+        if not values:
+            return 0
+        widths = sorted(cell_len(v) for v in values)
+        return widths[int(len(widths) * 0.8)]
+
     def output(self, result: LookupResult) -> None:
+        # Pre-compute column widths so entries align without one long
+        # outlier inflating the padding for every other line.
+        word_w = self._col_width(
+            [e.word or e.reading for e in result.vocabulary]
+        )
+        read_w = self._col_width(
+            [e.reading for e in result.vocabulary if e.word]
+        )
         for entry in result.vocabulary:
-            self._render_vocab(entry)
+            self._render_vocab(entry, word_w, read_w)
 
         if result.more_vocabulary:
             self.console.print(
@@ -801,15 +817,24 @@ class CompactFormatter:
             for entry in kanji:
                 self._render_kanji(entry)
 
-    def _render_vocab(self, entry: VocabEntry) -> None:
+    def _render_vocab(
+        self,
+        entry: VocabEntry,
+        word_w: int = 0,
+        read_w: int = 0,
+    ) -> None:
         c = self.colors
         line = Text()
-        line.append(entry.word or entry.reading, style=c.title)
+        word = entry.word or entry.reading
+        line.append(word, style=c.title)
+        # Pad to column width; outliers (wider than cap) get one space
+        line.append(" " * max(1, word_w - cell_len(word) + 1))
         if entry.word:
-            line.append(f" {entry.reading}", style=c.text_reading)
-        line.append(
-            f" {', '.join(entry.meanings)}", style=c.text_value
-        )
+            line.append(entry.reading, style=c.text_reading)
+            line.append(" " * max(1, read_w - cell_len(entry.reading) + 1))
+        elif read_w > 0:
+            line.append(" " * (read_w + 1))  # skip reading column
+        line.append(", ".join(entry.meanings), style=c.text_value)
         if entry.in_anki:
             line.append("  A", style=c.badge_anki)
         if entry.wk_level is not None:
