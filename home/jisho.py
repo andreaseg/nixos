@@ -1,6 +1,7 @@
 import os
 import sys
 import requests
+from dataclasses import dataclass
 from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
@@ -12,7 +13,49 @@ WANIKANI_API = "https://api.wanikani.com/v2"
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
 
 
-def get_wanikani_token():
+@dataclass
+class Sense:
+    parts_of_speech: list[str]
+    definitions: list[str]
+    info: list[str]
+
+
+@dataclass
+class VocabEntry:
+    word: str
+    reading: str
+    is_common: bool
+    jlpt: list[str]
+    senses: list[Sense]
+    wk_level: int | None = None
+    wk_meanings: list[str] | None = None
+    wk_readings: list[str] | None = None
+
+
+@dataclass
+class KanjiEntry:
+    character: str
+    meanings: list[str]
+    on_readings: list[str]
+    kun_readings: list[str]
+    is_jouyou: bool
+    wk_level: int | None = None
+
+
+def to_katakana(text: str) -> str:
+    return "".join(
+        chr(ord(c) + 0x60) if "\u3041" <= c <= "\u3096" else c
+        for c in text
+    )
+
+
+def extract_kanji(text: str) -> list[str]:
+    return list(
+        dict.fromkeys(c for c in text if "\u4e00" <= c <= "\u9fff")
+    )
+
+
+def get_wanikani_token() -> str | None:
     token = os.environ.get("WANIKANI_API_TOKEN")
     if token:
         return token.strip()
@@ -21,7 +64,7 @@ def get_wanikani_token():
     return None
 
 
-def search_jisho(query):
+def search_jisho(query: str) -> list[dict]:
     resp = requests.get(
         "https://jisho.org/api/v1/search/words",
         params={"keyword": query},
@@ -31,7 +74,7 @@ def search_jisho(query):
     return resp.json().get("data", [])
 
 
-def search_wanikani_vocab(query, token):
+def search_wanikani_vocab(query: str, token: str) -> dict | None:
     resp = requests.get(
         f"{WANIKANI_API}/subjects",
         params={"types": "vocabulary,kanji", "slugs": query},
@@ -43,7 +86,9 @@ def search_wanikani_vocab(query, token):
     return data[0] if data else None
 
 
-def search_wanikani_kanji(kanji_list, token):
+def search_wanikani_kanji(
+    kanji_list: list[str], token: str
+) -> dict[str, dict]:
     resp = requests.get(
         f"{WANIKANI_API}/subjects",
         params={"types": "kanji", "slugs": ",".join(kanji_list)},
@@ -54,7 +99,7 @@ def search_wanikani_kanji(kanji_list, token):
     return {s["data"]["slug"]: s for s in resp.json().get("data", [])}
 
 
-def lookup_kanji_data(kanji):
+def lookup_kanji_data(kanji: str) -> dict | None:
     resp = requests.get(f"{KANJIAPI}/{kanji}", timeout=10)
     if resp.status_code == 404:
         return None
@@ -62,158 +107,198 @@ def lookup_kanji_data(kanji):
     return resp.json()
 
 
-def to_katakana(text):
-    return "".join(
-        chr(ord(c) + 0x60) if "\u3041" <= c <= "\u3096" else c
-        for c in text
-    )
-
-
-def extract_kanji(text):
-    return list(dict.fromkeys(c for c in text if "\u4e00" <= c <= "\u9fff"))
-
-
-def is_exact_match(entry, query):
-    for j in entry.get("japanese", []):
+def is_exact_match(raw: dict, query: str) -> bool:
+    for j in raw.get("japanese", []):
         if j.get("word") == query or j.get("reading") == query:
             return True
     return False
 
 
-def render_vocab_entry(entry, console, wk_subject=None):
-    japanese = entry.get("japanese", [{}])
+def parse_vocab_entry(raw: dict, wk_subject: dict | None) -> VocabEntry:
+    japanese = raw.get("japanese", [{}])
     word = japanese[0].get("word", "")
     reading = japanese[0].get("reading", "")
-    is_common = entry.get("is_common", False)
-    jlpt = entry.get("jlpt", [])
 
+    if wk_subject:
+        wk_data = wk_subject["data"]
+        return VocabEntry(
+            word=word,
+            reading=reading,
+            is_common=raw.get("is_common", False),
+            jlpt=raw.get("jlpt", []),
+            senses=[],
+            wk_level=wk_data.get("level"),
+            wk_meanings=[
+                m["meaning"] for m in wk_data.get("meanings", [])
+            ],
+            wk_readings=[
+                r["reading"] for r in wk_data.get("readings", [])
+            ],
+        )
+
+    senses = [
+        Sense(
+            parts_of_speech=s.get("parts_of_speech", []),
+            definitions=s.get("english_definitions", []),
+            info=s.get("info", []),
+        )
+        for s in raw.get("senses", [])
+    ]
+    return VocabEntry(
+        word=word,
+        reading=reading,
+        is_common=raw.get("is_common", False),
+        jlpt=raw.get("jlpt", []),
+        senses=senses,
+    )
+
+
+def parse_kanji_entry(
+    kanji: str,
+    wk_subject: dict | None,
+    kanji_data: dict | None,
+) -> KanjiEntry:
+    is_jouyou = (
+        kanji_data is not None and kanji_data.get("grade") is not None
+    )
+
+    if wk_subject:
+        wk_data = wk_subject["data"]
+        return KanjiEntry(
+            character=kanji,
+            meanings=[m["meaning"] for m in wk_data.get("meanings", [])],
+            on_readings=[
+                to_katakana(r["reading"])
+                for r in wk_data.get("readings", [])
+                if r.get("type") == "onyomi"
+            ],
+            kun_readings=[
+                r["reading"]
+                for r in wk_data.get("readings", [])
+                if r.get("type") == "kunyomi"
+            ],
+            is_jouyou=is_jouyou,
+            wk_level=wk_data.get("level"),
+        )
+
+    if kanji_data:
+        return KanjiEntry(
+            character=kanji,
+            meanings=kanji_data.get("meanings", []),
+            on_readings=[
+                to_katakana(r) for r in kanji_data.get("on_readings", [])
+            ],
+            kun_readings=kanji_data.get("kun_readings", []),
+            is_jouyou=is_jouyou,
+        )
+
+    return KanjiEntry(
+        character=kanji,
+        meanings=[],
+        on_readings=[],
+        kun_readings=[],
+        is_jouyou=False,
+    )
+
+
+def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
     title = Text()
-    if word:
-        title.append(word, style="bold cyan")
+    if entry.word:
+        title.append(entry.word, style="bold cyan")
         title.append("  ")
-        title.append(reading, style="cyan")
+        title.append(entry.reading, style="cyan")
     else:
-        title.append(reading, style="bold cyan")
+        title.append(entry.reading, style="bold cyan")
 
     badges = Text()
-    if wk_subject:
-        wk_level = wk_subject["data"].get("level", "?")
-        badges.append(f"⬡ WaniKani L{wk_level}", style="bold magenta")
+    if entry.wk_level is not None:
+        badges.append(
+            f"⬡ WaniKani L{entry.wk_level}", style="bold magenta"
+        )
         badges.append("  ")
-    if is_common:
+    if entry.is_common:
         badges.append("● common", style="green")
-    if jlpt:
-        if is_common:
+    if entry.jlpt:
+        if entry.is_common:
             badges.append("  ")
-        jlpt_str = jlpt[0].replace("jlpt-", "").upper()
+        jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
         badges.append(f"● {jlpt_str}", style="yellow")
 
     body = Text()
-    if wk_subject:
-        wk_data = wk_subject["data"]
-        meanings = [m["meaning"] for m in wk_data.get("meanings", [])]
-        readings = [r["reading"] for r in wk_data.get("readings", [])]
+    if entry.wk_meanings is not None:
         body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(meanings) + "\n", style="white")
-        if readings:
+        body.append(", ".join(entry.wk_meanings) + "\n", style="white")
+        if entry.wk_readings:
             body.append("  Readings: ", style="italic dim")
-            body.append(", ".join(readings) + "\n", style="white")
+            body.append(
+                ", ".join(entry.wk_readings) + "\n", style="white"
+            )
     else:
-        prev_pos_key = None
-        for i, sense in enumerate(entry.get("senses", []), 1):
-            pos = sense.get("parts_of_speech", [])
-            defs = sense.get("english_definitions", [])
-            info = sense.get("info", [])
-
-            pos_key = tuple(pos)
-            if pos_key != prev_pos_key:
+        prev_pos: tuple[str, ...] = ()
+        for i, sense in enumerate(entry.senses, 1):
+            pos_key = tuple(sense.parts_of_speech)
+            if pos_key != prev_pos:
                 if i > 1:
                     body.append("\n")
-                if pos:
-                    pos_label = "  " + " · ".join(pos) + "\n"
-                    body.append(pos_label, style="italic dim")
-                prev_pos_key = pos_key
-
+                if sense.parts_of_speech:
+                    pos_label = "  " + " · ".join(sense.parts_of_speech)
+                    body.append(pos_label + "\n", style="italic dim")
+                prev_pos = pos_key
             body.append(f"  {i}. ", style="bold white")
-            body.append(", ".join(defs), style="white")
-            if info:
-                body.append(f"  ({', '.join(info)})", style="dim")
+            body.append(", ".join(sense.definitions), style="white")
+            if sense.info:
+                body.append(
+                    f"  ({', '.join(sense.info)})", style="dim"
+                )
             body.append("\n")
 
     content = Text.assemble(badges, "\n\n", body) if badges else body
-
     console.print(Panel(
         content,
         title=title,
         title_align="left",
-        border_style="magenta" if wk_subject else "blue",
+        border_style="magenta" if entry.wk_level is not None else "blue",
         padding=(0, 1),
     ))
 
 
-def render_kanji_entry(kanji, wk_subject, kanji_data, console):
-    title = Text(kanji, style="bold cyan")
+def render_kanji_entry(entry: KanjiEntry, console: Console) -> None:
+    title = Text(entry.character, style="bold cyan")
 
     badges = Text()
-    if wk_subject:
-        level = wk_subject["data"].get("level", "?")
-        badges.append(f"⬡ WaniKani L{level}", style="bold magenta")
+    if entry.wk_level is not None:
+        badges.append(
+            f"⬡ WaniKani L{entry.wk_level}", style="bold magenta"
+        )
     else:
         badges.append("⚠ not in WaniKani", style="yellow")
-
-    is_jouyou = kanji_data and kanji_data.get("grade") is not None
-    if not is_jouyou:
+    if not entry.is_jouyou:
         badges.append("  ")
         badges.append("⚠ not jouyou", style="red")
 
     body = Text()
-    if wk_subject:
-        wk_data = wk_subject["data"]
-        meanings = [m["meaning"] for m in wk_data.get("meanings", [])]
-        on_r = [
-            to_katakana(r["reading"])
-            for r in wk_data.get("readings", [])
-            if r.get("type") == "onyomi"
-        ]
-        kun_r = [
-            r["reading"] for r in wk_data.get("readings", [])
-            if r.get("type") == "kunyomi"
-        ]
+    if entry.meanings:
         body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(meanings) + "\n", style="white")
-        if on_r:
-            body.append("  On: ", style="italic dim")
-            body.append(", ".join(on_r) + "\n", style="white")
-        if kun_r:
-            body.append("  Kun: ", style="italic dim")
-            body.append(", ".join(kun_r) + "\n", style="white")
-    elif kanji_data:
-        meanings = kanji_data.get("meanings", [])
-        on_r = [to_katakana(r) for r in kanji_data.get("on_readings", [])]
-        kun_r = kanji_data.get("kun_readings", [])
-        body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(meanings) + "\n", style="white")
-        if on_r:
-            body.append("  On: ", style="italic dim")
-            body.append(", ".join(on_r) + "\n", style="white")
-        if kun_r:
-            body.append("  Kun: ", style="italic dim")
-            body.append(", ".join(kun_r) + "\n", style="white")
-    else:
+        body.append(", ".join(entry.meanings) + "\n", style="white")
+    if entry.on_readings:
+        body.append("  On: ", style="italic dim")
+        body.append(", ".join(entry.on_readings) + "\n", style="white")
+    if entry.kun_readings:
+        body.append("  Kun: ", style="italic dim")
+        body.append(", ".join(entry.kun_readings) + "\n", style="white")
+    if not entry.meanings:
         body.append("  No data found\n", style="dim")
 
-    content = Text.assemble(badges, "\n\n", body)
-
     console.print(Panel(
-        content,
+        Text.assemble(badges, "\n\n", body),
         title=title,
         title_align="left",
-        border_style="magenta" if wk_subject else "blue",
+        border_style="magenta" if entry.wk_level is not None else "blue",
         padding=(0, 1),
     ))
 
 
-def main():
+def main() -> None:
     if len(sys.argv) < 2:
         print("Usage: jisho <query>")
         sys.exit(1)
@@ -232,10 +317,11 @@ def main():
         console.print(f"[yellow]No results for '{query}'[/yellow]")
         sys.exit(0)
 
-    exact = [e for e in results if is_exact_match(e, query)]
+    exact = [r for r in results if is_exact_match(r, query)]
     to_show = exact if exact else results[:5]
 
-    wk_subject = None
+    wk_vocab: dict | None = None
+    wk_readings_set: set[str] = set()
     if token and exact:
         try:
             jisho_reading = (
@@ -243,41 +329,34 @@ def main():
             )
             wk_candidate = search_wanikani_vocab(query, token)
             if wk_candidate:
-                wk_readings = [
+                candidate_readings = {
                     r["reading"]
                     for r in wk_candidate["data"].get("readings", [])
-                ]
-                if jisho_reading in wk_readings:
-                    wk_subject = wk_candidate
+                }
+                if jisho_reading in candidate_readings:
+                    wk_vocab = wk_candidate
+                    wk_readings_set = candidate_readings
         except requests.RequestException:
             pass
 
-    wk_readings = []
-    if wk_subject:
-        wk_readings = [
-            r["reading"]
-            for r in wk_subject["data"].get("readings", [])
-        ]
-
-    for entry in to_show:
-        first = entry.get("japanese", [{}])[0]
+    for raw in to_show:
+        first = raw.get("japanese", [{}])[0]
         reading = first.get("reading", "")
         word = first.get("word", "")
-        is_wk = (
-            wk_subject is not None
+        use_wk = (
+            wk_vocab is not None
             and (word == query or reading == query)
-            and reading in wk_readings
+            and reading in wk_readings_set
         )
-        render_vocab_entry(
-            entry, console, wk_subject=wk_subject if is_wk else None
-        )
+        entry = parse_vocab_entry(raw, wk_vocab if use_wk else None)
+        render_vocab_entry(entry, console)
         console.print()
 
     kanji_chars = extract_kanji(query)
     if not kanji_chars:
         return
 
-    wk_kanji = {}
+    wk_kanji: dict[str, dict] = {}
     if token:
         try:
             wk_kanji = search_wanikani_kanji(kanji_chars, token)
@@ -292,7 +371,10 @@ def main():
             kanji_data = lookup_kanji_data(kanji)
         except requests.RequestException:
             kanji_data = None
-        render_kanji_entry(kanji, wk_kanji.get(kanji), kanji_data, console)
+        entry = parse_kanji_entry(
+            kanji, wk_kanji.get(kanji), kanji_data
+        )
+        render_kanji_entry(entry, console)
         console.print()
 
 
