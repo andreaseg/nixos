@@ -114,10 +114,20 @@ in
     );
 
     home.packages = [
-      (pkgs.writers.writePython3Bin "jisho"
-        { libraries = with pkgs.python3Packages; [ requests rich ]; }
-        (builtins.readFile ./jisho.py)
-      )
+      (pkgs.python3Packages.buildPythonApplication {
+        pname = "jisho";
+        version = "0.1.0";
+        src = ./.;
+        pyproject = true;
+        build-system = [ pkgs.python3Packages.setuptools ];
+        dependencies = with pkgs.python3Packages; [ requests rich ];
+        nativeCheckInputs = [ pkgs.python3Packages.pytest ];
+        checkPhase = ''
+          runHook preCheck
+          pytest tests/ -q
+          runHook postCheck
+        '';
+      })
     ];
 
     xdg.configFile."jisho/config.json".text = builtins.toJSON {

@@ -1,0 +1,133 @@
+import json
+import os
+import time
+from pathlib import Path
+
+import requests
+
+from ..utils import to_katakana
+
+WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
+WANIKANI_API = "https://api.wanikani.com/v2"
+WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
+
+
+def _get_token() -> str | None:
+    token = os.environ.get("WANIKANI_API_TOKEN")
+    if token:
+        return token.strip()
+    if WANIKANI_TOKEN_FILE.exists():
+        return WANIKANI_TOKEN_FILE.read_text().strip()
+    return None
+
+
+def _fetch_pages(url: str, token: str) -> list[dict]:
+    items: list[dict] = []
+    next_url: str | None = url
+    while next_url:
+        resp = requests.get(
+            next_url,
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        items.extend(body["data"])
+        next_url = body["pages"].get("next_url")
+    return items
+
+
+def _fetch_all(token: str) -> dict | None:
+    try:
+        subjects = _fetch_pages(
+            f"{WANIKANI_API}/subjects?types=vocabulary,kanji", token,
+        )
+        assignments = _fetch_pages(
+            f"{WANIKANI_API}/assignments?burned=true", token,
+        )
+        burned_ids = {a["data"]["subject_id"] for a in assignments}
+
+        vocabulary: dict[str, dict] = {}
+        kanji: dict[str, dict] = {}
+
+        for subject in subjects:
+            data = subject["data"]
+            slug = data["slug"]
+            burned = subject["id"] in burned_ids
+            meanings = [m["meaning"] for m in data.get("meanings", [])]
+            readings = data.get("readings", [])
+
+            if subject["object"] == "vocabulary":
+                vocabulary[slug] = {
+                    "level": data["level"],
+                    "meanings": meanings,
+                    "readings": [r["reading"] for r in readings],
+                    "burned": burned,
+                }
+            else:
+                kanji[slug] = {
+                    "level": data["level"],
+                    "meanings": meanings,
+                    "on_readings": [
+                        to_katakana(r["reading"])
+                        for r in readings
+                        if r.get("type") == "onyomi"
+                    ],
+                    "kun_readings": [
+                        r["reading"]
+                        for r in readings
+                        if r.get("type") == "kunyomi"
+                    ],
+                    "burned": burned,
+                }
+
+        return {"vocabulary": vocabulary, "kanji": kanji}
+    except (requests.RequestException, KeyError):
+        return None
+
+
+def _load_cache(ttl: int) -> tuple[dict, bool] | None:
+    """Return (data, is_expired), or None if no cache file exists."""
+    if not WK_CACHE_FILE.exists():
+        return None
+    try:
+        raw = json.loads(WK_CACHE_FILE.read_text())
+        expired = time.time() - raw["timestamp"] > ttl
+        return raw["data"], expired
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def _save_cache(data: dict) -> None:
+    WK_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    WK_CACHE_FILE.write_text(json.dumps({
+        "timestamp": time.time(),
+        "data": data,
+    }))
+
+
+def get_wk_subjects(ttl: int) -> tuple[dict, list[str]]:
+    """Return (subjects, warnings). Reads token and manages cache internally."""
+    empty = {"vocabulary": {}, "kanji": {}}
+    token = _get_token()
+
+    if not token:
+        result = _load_cache(ttl)
+        warning = (
+            "WaniKani is enabled but no token is set —"
+            " set WANIKANI_API_TOKEN or write your token to"
+            " ~/.config/wanikani/token."
+        )
+        return (result[0] if result else empty), [warning]
+
+    cached = _load_cache(ttl)
+
+    if cached and not cached[1]:
+        return cached[0], []
+
+    fresh = _fetch_all(token)
+    if fresh is not None:
+        _save_cache(fresh)
+        return fresh, []
+
+    return (cached[0] if cached else empty), []

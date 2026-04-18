@@ -3,6 +3,9 @@
 A Japanese dictionary CLI powered by [jisho.org](https://jisho.org), with
 optional enrichment from WaniKani and Anki.
 
+![Rich format](docs/rich.png)
+![Compact format](docs/compact.png)
+
 ## Features
 
 - Vocabulary and kanji lookup via the Jisho API
