@@ -165,8 +165,25 @@
                 except requests.RequestException:
                     pass
 
+            wk_readings = []
+            if wk_subject:
+                wk_readings = [
+                    r["reading"]
+                    for r in wk_subject["data"].get("readings", [])
+                ]
+
             for entry in to_show:
-                render_entry(entry, console, wk_subject=wk_subject)
+                first = entry.get("japanese", [{}])[0]
+                reading = first.get("reading", "")
+                word = first.get("word", "")
+                is_wk = (
+                    wk_subject is not None
+                    and (word == query or reading == query)
+                    and reading in wk_readings
+                )
+                render_entry(
+                    entry, console, wk_subject=wk_subject if is_wk else None
+                )
                 console.print()
 
 
