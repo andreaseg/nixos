@@ -1,5 +1,7 @@
+import json
 import os
 import sys
+import time
 import requests
 from dataclasses import dataclass
 from pathlib import Path
@@ -12,6 +14,8 @@ WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
 ANKI_CONNECT = "http://localhost:8765"
+ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
+ANKI_CACHE_TTL = 86400  # 1 day in seconds
 
 # Maps Anki note type names to the field containing the vocabulary word.
 # Add additional note types here as needed.
@@ -82,16 +86,61 @@ def anki_request(action: str, **params) -> object:
     return result["result"]
 
 
-def search_anki(query: str) -> bool:
+def load_anki_cache() -> set[str] | None:
+    if not ANKI_CACHE_FILE.exists():
+        return None
     try:
+        data = json.loads(ANKI_CACHE_FILE.read_text())
+        if time.time() - data["timestamp"] > ANKI_CACHE_TTL:
+            return None
+        return set(data["words"])
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def save_anki_cache(words: set[str]) -> None:
+    ANKI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    ANKI_CACHE_FILE.write_text(json.dumps({
+        "timestamp": time.time(),
+        "words": list(words),
+    }))
+
+
+def fetch_anki_words() -> set[str] | None:
+    try:
+        words: set[str] = set()
         for note_type, field_name in ANKI_VOCAB_FIELDS.items():
-            search = f'note:"{note_type}" "{field_name}:{query}"'
-            note_ids = anki_request("findNotes", query=search)
-            if note_ids:
-                return True
+            note_ids = anki_request(
+                "findNotes", query=f'note:"{note_type}"'
+            )
+            if not note_ids:
+                continue
+            notes = anki_request("notesInfo", notes=list(note_ids))
+            for note in notes:
+                value = (
+                    note["fields"]
+                    .get(field_name, {})
+                    .get("value", "")
+                    .strip()
+                )
+                if value:
+                    words.add(value)
+        return words
     except (requests.RequestException, RuntimeError, KeyError):
-        pass
-    return False
+        return None
+
+
+def get_anki_words() -> set[str]:
+    live = fetch_anki_words()
+    if live is not None:
+        save_anki_cache(live)
+        return live
+    cached = load_anki_cache()
+    return cached if cached is not None else set()
+
+
+def search_anki(query: str) -> bool:
+    return query in get_anki_words()
 
 
 def search_jisho(query: str) -> list[dict]:
