@@ -5,6 +5,7 @@
     enable = true;
     shellAliases = {
       vim = "nvim";
+      icat = "kitty +kitten icat";
     };
     initExtra = ''
       nrs() {
