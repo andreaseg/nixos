@@ -151,7 +151,17 @@
             wk_subject = None
             if token and exact:
                 try:
-                    wk_subject = search_wanikani(query, token)
+                    jisho_reading = (
+                        exact[0].get("japanese", [{}])[0].get("reading", "")
+                    )
+                    wk_candidate = search_wanikani(query, token)
+                    if wk_candidate:
+                        wk_readings = [
+                            r["reading"]
+                            for r in wk_candidate["data"].get("readings", [])
+                        ]
+                        if jisho_reading in wk_readings:
+                            wk_subject = wk_candidate
                 except requests.RequestException:
                     pass
 
