@@ -93,7 +93,7 @@
         "mako"
         "nm-applet --indicator"
         "eww open clock"
-        "fcitx5 -d"
+        "fcitx5 -d --disable=notificationitem"
       ];
 
       # Keybindings

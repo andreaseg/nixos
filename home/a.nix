@@ -43,9 +43,5 @@
     '';
   };
 
-  xdg.configFile."fcitx5/conf/classicui.conf".text = ''
-    UseTrayIcon=False
-  '';
-
   home.stateVersion = "25.11";
 }
