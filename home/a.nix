@@ -20,6 +20,7 @@
     python3
     glow
     gnumake
+    bat
   ];
 
   home.sessionVariables = {
