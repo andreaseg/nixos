@@ -202,6 +202,7 @@
 
         tray = {
           spacing = 10;
+          ignored-items = [ "fcitx" ];
         };
       };
     };
