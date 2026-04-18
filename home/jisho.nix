@@ -53,6 +53,16 @@ in
       };
     };
 
+    format = lib.mkOption {
+      type = lib.types.enum [ "rich" "compact" "json" ];
+      default = "rich";
+      description = ''
+        Default output format. Can be overridden per invocation with
+        --format. "rich" renders panels, "compact" is one line per
+        result, "json" outputs raw JSON.
+      '';
+    };
+
     cache = {
       wkTtl = lib.mkOption {
         type = lib.types.int;
@@ -82,7 +92,7 @@ in
     ];
 
     xdg.configFile."jisho/config.json".text = builtins.toJSON {
-      inherit (cfg) colors badges anki cache;
+      inherit (cfg) colors badges anki cache format;
     };
   };
 }
