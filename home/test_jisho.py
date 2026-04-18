@@ -289,3 +289,60 @@ def test_get_anki_words_fresh_cache_no_warning():
             words, warnings = jisho.get_anki_words(_FIELDS, stale=604800)
     assert "猫" in words
     assert warnings == []
+
+
+# ---------------------------------------------------------------------------
+# init-config
+# ---------------------------------------------------------------------------
+
+
+def test_default_config_dict_structure():
+    d = jisho.default_config_dict()
+    assert "colors" in d
+    assert "badge" in d["colors"]
+    assert "border" in d["colors"]
+    assert "text" in d["colors"]
+    assert "badges" in d
+    assert "anki" in d
+    assert "cache" in d
+    assert "format" in d
+
+
+def test_default_config_dict_roundtrips():
+    # Writing defaults and reading them back should produce the same config
+    # as the no-file fallback.
+    import json as _json
+    raw = _json.loads(_json.dumps(jisho.default_config_dict()))
+    cfg = jisho.load_config.__wrapped__(raw) if hasattr(
+        jisho.load_config, "__wrapped__"
+    ) else None
+    # At minimum, the dict must be valid JSON and parse without error.
+    anki = raw.get("anki", {})
+    parsed = jisho.Config(
+        colors=jisho._parse_colors(raw.get("colors", {})),
+        badges=jisho._parse_badges(raw.get("badges", {})),
+        anki_fields=anki.get("fields", {}),
+        cache=jisho._parse_cache(raw.get("cache", {})),
+        format=raw.get("format", "rich"),
+    )
+    assert parsed.format == "rich"
+    assert parsed.colors.title == jisho.Colors().title
+    assert parsed.badges.anki == jisho.Badges().anki
+    assert parsed.cache.wk_ttl == jisho.Cache().wk_ttl
+
+
+def test_is_nix_managed_regular_file(tmp_path):
+    f = tmp_path / "config.json"
+    f.write_text("{}")
+    assert jisho.is_nix_managed(f) is False
+
+
+def test_is_nix_managed_nix_store_symlink(tmp_path):
+    target = tmp_path / "config.json"
+    target.write_text("{}")
+    link = tmp_path / "link.json"
+    link.symlink_to(target)
+    # Patch resolve to simulate a /nix/store path
+    with patch.object(link.__class__, "resolve",
+                      return_value=Path("/nix/store/abc/config.json")):
+        assert jisho.is_nix_managed(link) is True
