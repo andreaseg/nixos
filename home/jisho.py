@@ -656,7 +656,9 @@ class RichFormatter:
         )
         if kanji:
             title = "Kanji" if self.verbose else "Unknown Kanji"
-            self.console.print(Rule(title, style="dim"))
+            self.console.print(
+                Rule(f"[dim]{title}[/dim]", style="dim")
+            )
             self.console.print()
             for entry in kanji:
                 self._render_kanji(entry)
@@ -812,7 +814,7 @@ class CompactFormatter:
         line = Text()
         line.append(entry.word or entry.reading, style=c.title)
         if entry.word:
-            line.append(f" {entry.reading}", style=c.text_label)
+            line.append(f" {entry.reading}", style="cyan")
         line.append(
             f" {', '.join(entry.meanings)}", style=c.text_value
         )
@@ -836,7 +838,7 @@ class CompactFormatter:
         line.append(entry.character, style=c.title)
         readings = ", ".join(entry.on_readings + entry.kun_readings)
         if readings:
-            line.append(f" {readings}", style=c.text_label)
+            line.append(f" {readings}", style="cyan")
         if entry.meanings:
             line.append(
                 f" {', '.join(entry.meanings)}", style=c.text_value
