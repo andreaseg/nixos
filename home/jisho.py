@@ -853,87 +853,6 @@ class CompactFormatter:
         self.console.print(line)
 
 
-class CompactFormatter:
-    """One line per entry: {word} {reading} {meanings} {badges}."""
-
-    def __init__(
-        self,
-        console: Console,
-        colors: Colors,
-        badges: Badges,
-        verbose: bool = False,
-    ) -> None:
-        self.console = console
-        self.colors = colors
-        self.badges = badges
-        self.verbose = verbose
-
-    def output(self, result: LookupResult) -> None:
-        for entry in result.vocabulary:
-            self._render_vocab(entry)
-
-        if result.more_vocabulary:
-            self.console.print(
-                f"[dim]… {result.more_vocabulary} more result"
-                f"{'s' if result.more_vocabulary > 1 else ''}"
-                " — use --limit to show more[/dim]"
-            )
-
-        kanji = (
-            result.kanji if self.verbose
-            else [k for k in result.kanji if k.unknown]
-        )
-        for entry in kanji:
-            self._render_kanji(entry)
-
-    def _render_vocab(self, entry: VocabEntry) -> None:
-        c = self.colors
-        b = self.badges
-        line = Text()
-        line.append(entry.word or entry.reading, style=c.title)
-        if entry.word:
-            line.append(f" {entry.reading}", style=c.text_label)
-        line.append(f" {', '.join(entry.meanings)}")
-        if entry.in_anki:
-            line.append(f"  {b.anki}", style=c.badge_anki)
-        if entry.wk_level is not None:
-            wk = f"{b.wk_prefix}{entry.wk_level}"
-            if entry.wk_burned:
-                wk += b.burned
-            line.append(f"  {wk}", style=c.badge_wk)
-        if entry.is_common:
-            line.append(f"  {b.common}", style=c.badge_common)
-        if entry.jlpt:
-            jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
-            line.append(
-                f"  {b.jlpt_prefix}{jlpt_str}", style=c.badge_jlpt
-            )
-        self.console.print(line)
-
-    def _render_kanji(self, entry: KanjiEntry) -> None:
-        c = self.colors
-        b = self.badges
-        line = Text()
-        line.append(entry.character, style=c.title)
-        readings = ", ".join(entry.on_readings + entry.kun_readings)
-        if readings:
-            line.append(f" {readings}", style=c.text_label)
-        if entry.meanings:
-            line.append(f" {', '.join(entry.meanings)}")
-        if entry.in_anki:
-            line.append(f"  {b.anki}", style=c.badge_anki)
-        if entry.wk_level is not None:
-            wk = f"{b.wk_prefix}{entry.wk_level}"
-            if entry.wk_burned:
-                wk += b.burned
-            line.append(f"  {wk}", style=c.badge_wk)
-        else:
-            line.append(f"  {b.not_in_wk}", style=c.badge_warning)
-        if not entry.is_jouyou:
-            line.append(f"  {b.not_jouyou}", style=c.badge_danger)
-        self.console.print(line)
-
-
 class JsonFormatter:
     def output(self, result: LookupResult) -> None:
         data = asdict(result)
@@ -944,6 +863,7 @@ class JsonFormatter:
 
 
 def main() -> None:
+    config = load_config()
     parser = argparse.ArgumentParser(
         description="Japanese dictionary lookup"
     )
@@ -964,7 +884,6 @@ def main() -> None:
     args = parser.parse_args()
 
     query = " ".join(args.query)
-    config = load_config()
     token = get_wanikani_token()
     wk_subjects = get_wk_subjects(token, config.cache.wk_ttl)
     anki_words, anki_warnings = get_anki_words(
