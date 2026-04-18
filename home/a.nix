@@ -19,6 +19,7 @@
     nerd-fonts.symbols-only
     python3
     glow
+    gnumake
   ];
 
   home.sessionVariables = {
