@@ -586,7 +586,7 @@ def lookup(
     query: str,
     wk_subjects: dict,
     anki_words: set[str],
-    limit: int = 5,
+    limit: int | None = 5,
 ) -> LookupResult:
     """Fetch and parse all data for a query. Raises on Jisho failure."""
     results = search_jisho(query)
@@ -600,7 +600,7 @@ def lookup(
     # Without this filter, Jisho returns loosely related results that
     # would flood the output for common words.
     pool = exact if exact else results
-    to_show = pool[:limit]
+    to_show = pool if limit is None else pool[:limit]
     more = len(pool) - len(to_show)
 
     vocabulary: list[VocabEntry] = []
@@ -1008,6 +1008,22 @@ def cmd_init_config(force: bool) -> None:
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 
+def _limit_type(value: str) -> int | None:
+    if value.lower() == "none":
+        return None
+    try:
+        n = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"invalid limit {value!r}: use a positive integer or 'none'"
+        )
+    if n < 1:
+        raise argparse.ArgumentTypeError(
+            f"limit must be at least 1, got {n}"
+        )
+    return n
+
+
 def main() -> None:
     if len(sys.argv) > 1 and sys.argv[1] == "init-config":
         force = "--force" in sys.argv[2:]
@@ -1061,8 +1077,8 @@ def main() -> None:
         help="Show all kanji, not just unknown ones",
     )
     parser.add_argument(
-        "--limit", type=int, default=5, metavar="N",
-        help="Maximum vocabulary results to show (default: 5)",
+        "--limit", type=_limit_type, default=5, metavar="N",
+        help="Max vocabulary results (default: 5, 'none' for all)",
     )
     args = parser.parse_args()
 
