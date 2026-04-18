@@ -63,6 +63,7 @@ class KanjiEntry:
     is_jouyou: bool
     wk_level: int | None = None
     burned: bool = False
+    in_anki: bool = False
 
 
 @dataclass
@@ -350,6 +351,7 @@ def parse_kanji_entry(
     kanji: str,
     wk_subject: dict | None,
     kanji_data: dict | None,
+    in_anki: bool = False,
 ) -> KanjiEntry:
     is_jouyou = (
         kanji_data is not None and kanji_data.get("grade") is not None
@@ -364,6 +366,7 @@ def parse_kanji_entry(
             is_jouyou=is_jouyou,
             wk_level=wk_subject["level"],
             burned=wk_subject["burned"],
+            in_anki=in_anki,
         )
 
     if kanji_data:
@@ -375,6 +378,7 @@ def parse_kanji_entry(
             ],
             kun_readings=kanji_data.get("kun_readings", []),
             is_jouyou=is_jouyou,
+            in_anki=in_anki,
         )
 
     return KanjiEntry(
@@ -383,6 +387,7 @@ def parse_kanji_entry(
         on_readings=[],
         kun_readings=[],
         is_jouyou=False,
+        in_anki=in_anki,
     )
 
 
@@ -447,9 +452,11 @@ def lookup(
             kanji_data = lookup_kanji_data(char)
         except requests.RequestException:
             kanji_data = None
-        kanji.append(
-            parse_kanji_entry(char, wk_kanji_cache.get(char), kanji_data)
-        )
+        char_in_anki = any(char in word for word in anki_words)
+        kanji.append(parse_kanji_entry(
+            char, wk_kanji_cache.get(char), kanji_data,
+            in_anki=char_in_anki,
+        ))
 
     return LookupResult(query=query, vocabulary=vocabulary, kanji=kanji)
 
@@ -552,6 +559,9 @@ class RichFormatter:
         title = Text(entry.character, style="bold cyan")
 
         badges = Text()
+        if entry.in_anki:
+            badges.append("★ Anki", style="bold green")
+            badges.append("  ")
         if entry.wk_level is not None:
             wk_badge = f"⬡ WaniKani L{entry.wk_level}"
             if entry.burned:
