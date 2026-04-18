@@ -865,7 +865,7 @@ class JsonFormatter:
         print(json.dumps(data, ensure_ascii=False, indent=2))
 
 
-# ── Init-config command ───────────────────────────────────────────────────────
+# ── Init-config command ──────────────────────────────────────────────────────
 
 
 def is_nix_managed(path: Path) -> bool:
