@@ -105,7 +105,8 @@
                         if i > 1:
                             body.append("\n")
                         if pos:
-                            body.append("  " + " · ".join(pos) + "\n", style="italic dim")
+                            pos_label = "  " + " · ".join(pos) + "\n"
+                            body.append(pos_label, style="italic dim")
                         prev_pos_key = pos_key
 
                     body.append(f"  {i}. ", style="bold white")
