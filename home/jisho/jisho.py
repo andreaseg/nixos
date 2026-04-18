@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Protocol
@@ -26,6 +27,9 @@ KANJIAPI = "https://kanjiapi.dev/v1/kanji"
 # AnkiConnect — local REST bridge bundled as an Anki add-on
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
+
+# Kanjiapi — persistent char→data cache (KANJIDIC2 data is static)
+KANJI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "kanji.json"
 
 # Tool config — written by the Nix module at build time
 JISHO_CONFIG_FILE = Path.home() / ".config" / "jisho" / "config.json"
@@ -483,6 +487,50 @@ def lookup_kanji_data(kanji: str) -> dict | None:
     return resp.json()
 
 
+def kanji_load_cache() -> dict[str, dict]:
+    """Persistent char→data map. No TTL: KANJIDIC2 data is static."""
+    if not KANJI_CACHE_FILE.exists():
+        return {}
+    try:
+        return json.loads(KANJI_CACHE_FILE.read_text())
+    except (json.JSONDecodeError, KeyError):
+        return {}
+
+
+def kanji_save_cache(data: dict[str, dict]) -> None:
+    KANJI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    KANJI_CACHE_FILE.write_text(
+        json.dumps(data, ensure_ascii=False)
+    )
+
+
+def lookup_kanji_chars(
+    chars: list[str],
+) -> dict[str, dict | None]:
+    """Return kanjiapi data for each char, parallel + cached."""
+    cache = kanji_load_cache()
+    to_fetch = [c for c in chars if c not in cache]
+
+    if to_fetch:
+        def _fetch(char: str) -> tuple[str, dict | None]:
+            try:
+                return char, lookup_kanji_data(char)
+            except requests.RequestException:
+                return char, None
+
+        with ThreadPoolExecutor(max_workers=len(to_fetch)) as ex:
+            fetched = dict(ex.map(_fetch, to_fetch))
+
+        updates = {
+            c: d for c, d in fetched.items() if d is not None
+        }
+        if updates:
+            kanji_save_cache({**cache, **updates})
+        cache.update(fetched)
+
+    return {c: cache.get(c) for c in chars}
+
+
 # ── Parsing ──────────────────────────────────────────────────────────────────
 
 
@@ -644,17 +692,14 @@ def lookup(
         if k in wk_subjects["kanji"]
     }
 
+    kanji_api = lookup_kanji_chars(kanji_chars)
     kanji: list[KanjiEntry] = []
     for char in kanji_chars:
-        try:
-            kanji_data = lookup_kanji_data(char)
-        except requests.RequestException:
-            kanji_data = None
         # Mark a kanji as known if it appears in any Anki word, not just
         # as a standalone card — knowing 猫缶 implies exposure to 猫.
         char_in_anki = any(char in word for word in anki_words)
         kanji.append(parse_kanji_entry(
-            char, wk_kanji.get(char), kanji_data,
+            char, wk_kanji.get(char), kanji_api.get(char),
             in_anki=char_in_anki,
         ))
 

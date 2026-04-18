@@ -389,3 +389,167 @@ def test_is_nix_managed_nix_store_symlink(tmp_path):
     with patch.object(link.__class__, "resolve",
                       return_value=Path("/nix/store/abc/config.json")):
         assert jisho.is_nix_managed(link) is True
+
+
+# ---------------------------------------------------------------------------
+# Kanji cache
+# ---------------------------------------------------------------------------
+
+
+def test_kanji_load_cache_missing(tmp_path):
+    with patch.object(jisho, "KANJI_CACHE_FILE", tmp_path / "k.json"):
+        assert jisho.kanji_load_cache() == {}
+
+
+def test_kanji_cache_roundtrip(tmp_path):
+    cache_path = tmp_path / "k.json"
+    data = {"猫": {"meanings": ["cat"], "grade": 8}}
+    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
+        jisho.kanji_save_cache(data)
+        assert jisho.kanji_load_cache() == data
+
+
+def test_lookup_kanji_chars_uses_cache(tmp_path):
+    cached = {"猫": {"meanings": ["cat"]}}
+    cache_path = tmp_path / "k.json"
+    cache_path.write_text(__import__("json").dumps(cached))
+    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
+        with patch.object(jisho, "lookup_kanji_data") as mock_fetch:
+            result = jisho.lookup_kanji_chars(["猫"])
+    mock_fetch.assert_not_called()
+    assert result["猫"] == {"meanings": ["cat"]}
+
+
+def test_lookup_kanji_chars_fetches_missing(tmp_path):
+    cache_path = tmp_path / "k.json"
+    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
+        with patch.object(
+            jisho, "lookup_kanji_data", return_value={"meanings": ["dog"]}
+        ):
+            result = jisho.lookup_kanji_chars(["犬"])
+    assert result["犬"] == {"meanings": ["dog"]}
+    # Saved to cache
+    assert cache_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Formatters
+# ---------------------------------------------------------------------------
+
+from io import StringIO
+from rich.console import Console as _Console
+
+
+def _console() -> tuple[_Console, StringIO]:
+    buf = StringIO()
+    return _Console(file=buf, no_color=True, width=200), buf
+
+
+_VOCAB_ENTRY = jisho.VocabEntry(
+    word="猫", reading="ねこ", is_common=True,
+    jlpt=["jlpt-n5"], meanings=["cat"],
+)
+_UNKNOWN_KANJI = jisho.KanjiEntry(
+    character="猫", meanings=["cat"],
+    on_readings=["ビョウ"], kun_readings=["ねこ"],
+    is_jouyou=False, jlpt=2,
+)
+_RESULT_WITH_KANJI = jisho.LookupResult(
+    query="猫", vocabulary=[_VOCAB_ENTRY], kanji=[_UNKNOWN_KANJI],
+)
+
+
+def test_compact_vocab_word_in_output():
+    console, buf = _console()
+    fmt = jisho.CompactFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(_RESULT_WITH_KANJI)
+    out = buf.getvalue()
+    assert "猫" in out
+    assert "ねこ" in out
+    assert "cat" in out
+
+
+def test_compact_kanji_separator_shown():
+    console, buf = _console()
+    fmt = jisho.CompactFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(_RESULT_WITH_KANJI)
+    assert "── Kanji ──" in buf.getvalue()
+
+
+def test_compact_known_kanji_hidden():
+    known = jisho.KanjiEntry(
+        character="猫", meanings=["cat"],
+        on_readings=["ビョウ"], kun_readings=["ねこ"],
+        is_jouyou=False, in_anki=True,
+    )
+    result = jisho.LookupResult(
+        query="猫", vocabulary=[_VOCAB_ENTRY], kanji=[known],
+    )
+    console, buf = _console()
+    fmt = jisho.CompactFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(result)
+    assert "── Kanji ──" not in buf.getvalue()
+
+
+def test_compact_verbose_shows_known_kanji():
+    known = jisho.KanjiEntry(
+        character="猫", meanings=["cat"],
+        on_readings=["ビョウ"], kun_readings=["ねこ"],
+        is_jouyou=False, in_anki=True,
+    )
+    result = jisho.LookupResult(
+        query="猫", vocabulary=[_VOCAB_ENTRY], kanji=[known],
+    )
+    console, buf = _console()
+    fmt = jisho.CompactFormatter(
+        console, jisho.Colors(), jisho.Badges(), verbose=True,
+    )
+    fmt.output(result)
+    assert "── Kanji ──" in buf.getvalue()
+
+
+def test_compact_col_width_caps_outliers():
+    console, _ = _console()
+    fmt = jisho.CompactFormatter(console, jisho.Colors(), jisho.Badges())
+    # 5 short + 1 very long → 80th-percentile (index 4) = short width
+    values = ["ab"] * 5 + ["ab" * 20]
+    assert fmt._col_width(values) == 2
+
+
+def test_compact_more_vocabulary_notice():
+    result = jisho.LookupResult(
+        query="test", vocabulary=[_VOCAB_ENTRY],
+        kanji=[], more_vocabulary=3,
+    )
+    console, buf = _console()
+    fmt = jisho.CompactFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(result)
+    assert "3 more" in buf.getvalue()
+
+
+def test_rich_vocab_in_output():
+    console, buf = _console()
+    fmt = jisho.RichFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(_RESULT_WITH_KANJI)
+    out = buf.getvalue()
+    assert "猫" in out
+    assert "ねこ" in out
+    assert "cat" in out
+
+
+def test_rich_unknown_kanji_section():
+    console, buf = _console()
+    fmt = jisho.RichFormatter(console, jisho.Colors(), jisho.Badges())
+    fmt.output(_RESULT_WITH_KANJI)
+    assert "Unknown Kanji" in buf.getvalue()
+
+
+def test_rich_verbose_kanji_title():
+    console, buf = _console()
+    fmt = jisho.RichFormatter(
+        console, jisho.Colors(), jisho.Badges(), verbose=True,
+    )
+    fmt.output(_RESULT_WITH_KANJI)
+    out = buf.getvalue()
+    assert "Kanji" in out
+    assert "Unknown Kanji" not in out
