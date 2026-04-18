@@ -785,4 +785,5 @@ def main() -> None:
     formatter.output(result)
 
 
-main()
+if __name__ == "__main__":
+    main()

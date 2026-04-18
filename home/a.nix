@@ -17,6 +17,7 @@
     mpv
     pavucontrol
     nerd-fonts.symbols-only
+    python3
   ];
 
   home.sessionVariables = {
