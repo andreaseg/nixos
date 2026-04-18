@@ -155,7 +155,6 @@
                 except requests.RequestException:
                     pass
 
-
             for entry in to_show:
                 render_entry(entry, console, wk_subject=wk_subject)
                 console.print()
