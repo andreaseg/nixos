@@ -1,10 +1,12 @@
+import argparse
 import json
 import os
 import sys
 import time
 import requests
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from pathlib import Path
+from typing import Protocol
 from rich.console import Console
 from rich.panel import Panel
 from rich.rule import Rule
@@ -26,6 +28,9 @@ ANKI_CACHE_TTL = 86400  # 1 day in seconds
 ANKI_VOCAB_FIELDS: dict[str, str] = {
     "Migaku Japanese CUSTOM STYLING": "Target Word Simplified",
 }
+
+
+# ── Dataclasses ──────────────────────────────────────────────────────────────
 
 
 @dataclass
@@ -58,6 +63,16 @@ class KanjiEntry:
     is_jouyou: bool
     wk_level: int | None = None
     burned: bool = False
+
+
+@dataclass
+class LookupResult:
+    query: str
+    vocabulary: list[VocabEntry]
+    kanji: list[KanjiEntry]
+
+
+# ── Utilities ────────────────────────────────────────────────────────────────
 
 
 def to_katakana(text: str) -> str:
@@ -193,7 +208,7 @@ def get_wk_subjects(token: str | None) -> dict:
     return cached[0] if cached else empty
 
 
-# ── Anki cache ──────────────────────────────────────────────────────────────
+# ── Anki cache ───────────────────────────────────────────────────────────────
 
 
 def anki_request(action: str, **params) -> object:
@@ -259,11 +274,7 @@ def get_anki_words() -> set[str]:
     return cached if cached is not None else set()
 
 
-def search_anki(query: str) -> bool:
-    return query in get_anki_words()
-
-
-# ── Jisho ───────────────────────────────────────────────────────────────────
+# ── External lookups ─────────────────────────────────────────────────────────
 
 
 def search_jisho(query: str) -> list[dict]:
@@ -284,14 +295,14 @@ def lookup_kanji_data(kanji: str) -> dict | None:
     return resp.json()
 
 
+# ── Parsing ──────────────────────────────────────────────────────────────────
+
+
 def is_exact_match(raw: dict, query: str) -> bool:
     for j in raw.get("japanese", []):
         if j.get("word") == query or j.get("reading") == query:
             return True
     return False
-
-
-# ── Parsing ─────────────────────────────────────────────────────────────────
 
 
 def parse_vocab_entry(
@@ -375,139 +386,21 @@ def parse_kanji_entry(
     )
 
 
-# ── Rendering ───────────────────────────────────────────────────────────────
+# ── Lookup ───────────────────────────────────────────────────────────────────
 
 
-def render_vocab_entry(entry: VocabEntry, console: Console) -> None:
-    title = Text()
-    if entry.word:
-        title.append(entry.word, style="bold cyan")
-        title.append("  ")
-        title.append(entry.reading, style="cyan")
-    else:
-        title.append(entry.reading, style="bold cyan")
-
-    badges = Text()
-    if entry.in_anki:
-        badges.append("★ Anki", style="bold green")
-        badges.append("  ")
-    if entry.wk_level is not None:
-        wk_badge = f"⬡ WaniKani L{entry.wk_level}"
-        if entry.burned:
-            wk_badge += " 🔥"
-        badges.append(wk_badge, style="bold magenta")
-        badges.append("  ")
-    if entry.is_common:
-        badges.append("● common", style="green")
-    if entry.jlpt:
-        if entry.is_common:
-            badges.append("  ")
-        jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
-        badges.append(f"● {jlpt_str}", style="yellow")
-
-    body = Text()
-    if entry.wk_meanings is not None:
-        body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(entry.wk_meanings) + "\n", style="white")
-        if entry.wk_readings:
-            body.append("  Readings: ", style="italic dim")
-            body.append(
-                ", ".join(entry.wk_readings) + "\n", style="white"
-            )
-    else:
-        prev_pos: tuple[str, ...] = ()
-        for i, sense in enumerate(entry.senses, 1):
-            pos_key = tuple(sense.parts_of_speech)
-            if pos_key != prev_pos:
-                if i > 1:
-                    body.append("\n")
-                if sense.parts_of_speech:
-                    pos_label = "  " + " · ".join(sense.parts_of_speech)
-                    body.append(pos_label + "\n", style="italic dim")
-                prev_pos = pos_key
-            body.append(f"  {i}. ", style="bold white")
-            body.append(", ".join(sense.definitions), style="white")
-            if sense.info:
-                body.append(
-                    f"  ({', '.join(sense.info)})", style="dim"
-                )
-            body.append("\n")
-
-    border = "green" if entry.in_anki else (
-        "magenta" if entry.wk_level is not None else "blue"
-    )
-    content = Text.assemble(badges, "\n\n", body) if badges else body
-    console.print(Panel(
-        content,
-        title=title,
-        title_align="left",
-        border_style=border,
-        padding=(0, 1),
-    ))
-
-
-def render_kanji_entry(entry: KanjiEntry, console: Console) -> None:
-    title = Text(entry.character, style="bold cyan")
-
-    badges = Text()
-    if entry.wk_level is not None:
-        wk_badge = f"⬡ WaniKani L{entry.wk_level}"
-        if entry.burned:
-            wk_badge += " 🔥"
-        badges.append(wk_badge, style="bold magenta")
-    else:
-        badges.append("⚠ not in WaniKani", style="yellow")
-    if not entry.is_jouyou:
-        badges.append("  ")
-        badges.append("⚠ not jouyou", style="red")
-
-    body = Text()
-    if entry.meanings:
-        body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(entry.meanings) + "\n", style="white")
-    if entry.on_readings:
-        body.append("  On: ", style="italic dim")
-        body.append(", ".join(entry.on_readings) + "\n", style="white")
-    if entry.kun_readings:
-        body.append("  Kun: ", style="italic dim")
-        body.append(", ".join(entry.kun_readings) + "\n", style="white")
-    if not entry.meanings:
-        body.append("  No data found\n", style="dim")
-
-    console.print(Panel(
-        Text.assemble(badges, "\n\n", body),
-        title=title,
-        title_align="left",
-        border_style="magenta" if entry.wk_level is not None else "blue",
-        padding=(0, 1),
-    ))
-
-
-# ── Main ───────────────────────────────────────────────────────────────────
-
-
-def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: jisho <query>")
-        sys.exit(1)
-
-    query = " ".join(sys.argv[1:])
-    console = Console(force_terminal=True)
-    token = get_wanikani_token()
-
-    try:
-        results = search_jisho(query)
-    except requests.RequestException as e:
-        console.print(f"[red]Request failed:[/red] {e}")
-        sys.exit(1)
+def lookup(
+    query: str,
+    wk_subjects: dict,
+    anki_words: set[str],
+) -> LookupResult:
+    """Fetch and parse all data for a query. Raises on Jisho failure."""
+    results = search_jisho(query)
 
     if not results:
-        console.print(f"[yellow]No results for '{query}'[/yellow]")
-        sys.exit(0)
+        return LookupResult(query=query, vocabulary=[], kanji=[])
 
-    wk_subjects = get_wk_subjects(token)
-    in_anki = search_anki(query)
-
+    in_anki = query in anki_words
     exact = [r for r in results if is_exact_match(r, query)]
     to_show = exact if exact else results[:5]
 
@@ -524,6 +417,7 @@ def main() -> None:
                 wk_vocab = wk_candidate
                 wk_readings_set = candidate_readings
 
+    vocabulary: list[VocabEntry] = []
     for raw in to_show:
         first = raw.get("japanese", [{}])[0]
         reading = first.get("reading", "")
@@ -534,37 +428,220 @@ def main() -> None:
             and is_match
             and reading in wk_readings_set
         )
-        entry = parse_vocab_entry(
+        vocabulary.append(parse_vocab_entry(
             raw,
             wk_vocab if use_wk else None,
             in_anki=in_anki and is_match,
-        )
-        render_vocab_entry(entry, console)
-        console.print()
+        ))
 
     kanji_chars = extract_kanji(query)
-    if not kanji_chars:
-        return
-
-    wk_kanji = {
+    wk_kanji_cache = {
         k: wk_subjects["kanji"][k]
         for k in kanji_chars
         if k in wk_subjects["kanji"]
     }
 
-    console.print(Rule("Kanji", style="dim"))
-    console.print()
-
-    for kanji in kanji_chars:
+    kanji: list[KanjiEntry] = []
+    for char in kanji_chars:
         try:
-            kanji_data = lookup_kanji_data(kanji)
+            kanji_data = lookup_kanji_data(char)
         except requests.RequestException:
             kanji_data = None
-        entry = parse_kanji_entry(
-            kanji, wk_kanji.get(kanji), kanji_data
+        kanji.append(
+            parse_kanji_entry(char, wk_kanji_cache.get(char), kanji_data)
         )
-        render_kanji_entry(entry, console)
-        console.print()
+
+    return LookupResult(query=query, vocabulary=vocabulary, kanji=kanji)
+
+
+# ── Output strategies ────────────────────────────────────────────────────────
+
+
+class Formatter(Protocol):
+    def output(self, result: LookupResult) -> None: ...
+
+
+class RichFormatter:
+    def __init__(self, console: Console) -> None:
+        self.console = console
+
+    def output(self, result: LookupResult) -> None:
+        for entry in result.vocabulary:
+            self._render_vocab(entry)
+            self.console.print()
+
+        if result.kanji:
+            self.console.print(Rule("Kanji", style="dim"))
+            self.console.print()
+            for entry in result.kanji:
+                self._render_kanji(entry)
+                self.console.print()
+
+    def _render_vocab(self, entry: VocabEntry) -> None:
+        title = Text()
+        if entry.word:
+            title.append(entry.word, style="bold cyan")
+            title.append("  ")
+            title.append(entry.reading, style="cyan")
+        else:
+            title.append(entry.reading, style="bold cyan")
+
+        badges = Text()
+        if entry.in_anki:
+            badges.append("★ Anki", style="bold green")
+            badges.append("  ")
+        if entry.wk_level is not None:
+            wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+            if entry.burned:
+                wk_badge += " 🔥"
+            badges.append(wk_badge, style="bold magenta")
+            badges.append("  ")
+        if entry.is_common:
+            badges.append("● common", style="green")
+        if entry.jlpt:
+            if entry.is_common:
+                badges.append("  ")
+            jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
+            badges.append(f"● {jlpt_str}", style="yellow")
+
+        body = Text()
+        if entry.wk_meanings is not None:
+            body.append("  Meanings: ", style="italic dim")
+            body.append(
+                ", ".join(entry.wk_meanings) + "\n", style="white"
+            )
+            if entry.wk_readings:
+                body.append("  Readings: ", style="italic dim")
+                body.append(
+                    ", ".join(entry.wk_readings) + "\n", style="white"
+                )
+        else:
+            prev_pos: tuple[str, ...] = ()
+            for i, sense in enumerate(entry.senses, 1):
+                pos_key = tuple(sense.parts_of_speech)
+                if pos_key != prev_pos:
+                    if i > 1:
+                        body.append("\n")
+                    if sense.parts_of_speech:
+                        pos_label = (
+                            "  " + " · ".join(sense.parts_of_speech)
+                        )
+                        body.append(pos_label + "\n", style="italic dim")
+                    prev_pos = pos_key
+                body.append(f"  {i}. ", style="bold white")
+                body.append(", ".join(sense.definitions), style="white")
+                if sense.info:
+                    body.append(
+                        f"  ({', '.join(sense.info)})", style="dim"
+                    )
+                body.append("\n")
+
+        border = "green" if entry.in_anki else (
+            "magenta" if entry.wk_level is not None else "blue"
+        )
+        content = Text.assemble(badges, "\n\n", body) if badges else body
+        self.console.print(Panel(
+            content,
+            title=title,
+            title_align="left",
+            border_style=border,
+            padding=(0, 1),
+        ))
+
+    def _render_kanji(self, entry: KanjiEntry) -> None:
+        title = Text(entry.character, style="bold cyan")
+
+        badges = Text()
+        if entry.wk_level is not None:
+            wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+            if entry.burned:
+                wk_badge += " 🔥"
+            badges.append(wk_badge, style="bold magenta")
+        else:
+            badges.append("⚠ not in WaniKani", style="yellow")
+        if not entry.is_jouyou:
+            badges.append("  ")
+            badges.append("⚠ not jouyou", style="red")
+
+        body = Text()
+        if entry.meanings:
+            body.append("  Meanings: ", style="italic dim")
+            body.append(", ".join(entry.meanings) + "\n", style="white")
+        if entry.on_readings:
+            body.append("  On: ", style="italic dim")
+            body.append(
+                ", ".join(entry.on_readings) + "\n", style="white"
+            )
+        if entry.kun_readings:
+            body.append("  Kun: ", style="italic dim")
+            body.append(
+                ", ".join(entry.kun_readings) + "\n", style="white"
+            )
+        if not entry.meanings:
+            body.append("  No data found\n", style="dim")
+
+        self.console.print(Panel(
+            Text.assemble(badges, "\n\n", body),
+            title=title,
+            title_align="left",
+            border_style=(
+                "magenta" if entry.wk_level is not None else "blue"
+            ),
+            padding=(0, 1),
+        ))
+
+
+class JsonFormatter:
+    def output(self, result: LookupResult) -> None:
+        data = asdict(result)
+        print(json.dumps(data, ensure_ascii=False, indent=2))
+
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Japanese dictionary lookup"
+    )
+    parser.add_argument("query", nargs="+", help="Word to look up")
+    parser.add_argument(
+        "--json", action="store_true", help="Output as JSON"
+    )
+    args = parser.parse_args()
+
+    query = " ".join(args.query)
+    token = get_wanikani_token()
+    wk_subjects = get_wk_subjects(token)
+    anki_words = get_anki_words()
+
+    try:
+        result = lookup(query, wk_subjects, anki_words)
+    except requests.RequestException as e:
+        if args.json:
+            print(json.dumps({"error": str(e)}))
+        else:
+            Console(force_terminal=True).print(
+                f"[red]Request failed:[/red] {e}"
+            )
+        sys.exit(1)
+
+    if not result.vocabulary and not result.kanji:
+        if args.json:
+            print(json.dumps(asdict(result), ensure_ascii=False))
+        else:
+            Console(force_terminal=True).print(
+                f"[yellow]No results for '{query}'[/yellow]"
+            )
+        sys.exit(0)
+
+    formatter: Formatter
+    if args.json:
+        formatter = JsonFormatter()
+    else:
+        formatter = RichFormatter(Console(force_terminal=True))
+
+    formatter.output(result)
 
 
 main()
