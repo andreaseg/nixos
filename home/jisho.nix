@@ -2,7 +2,7 @@
 
 let
   cfg = config.programs.jisho;
-  colorOpt = default: lib.mkOption {
+  strOpt = default: lib.mkOption {
     type = lib.types.str;
     inherit default;
   };
@@ -12,23 +12,44 @@ in
     enable = lib.mkEnableOption "jisho Japanese dictionary CLI";
 
     colors = {
-      title   = colorOpt "bold cyan";
+      title    = strOpt "bold cyan";
       badge = {
-        anki    = colorOpt "bold green";
-        wanikani = colorOpt "bold magenta";
-        common  = colorOpt "green";
-        jlpt    = colorOpt "yellow";
-        warning = colorOpt "yellow";
-        danger  = colorOpt "red";
+        anki     = strOpt "bold green";
+        wanikani = strOpt "bold magenta";
+        common   = strOpt "green";
+        jlpt     = strOpt "yellow";
+        warning  = strOpt "yellow";
+        danger   = strOpt "red";
       };
       border = {
-        anki     = colorOpt "green";
-        wanikani = colorOpt "magenta";
-        default  = colorOpt "blue";
+        anki     = strOpt "green";
+        wanikani = strOpt "magenta";
+        default  = strOpt "blue";
       };
       text = {
-        label = colorOpt "italic dim";
-        value = colorOpt "white";
+        label = strOpt "italic dim";
+        value = strOpt "white";
+      };
+    };
+
+    badges = {
+      anki       = strOpt "★ Anki";
+      wkPrefix   = strOpt "⬡ WaniKani L";
+      burned     = strOpt " 🔥";
+      common     = strOpt "● common";
+      jlptPrefix = strOpt "● ";
+      notInWk    = strOpt "⚠ not in WaniKani";
+      notJouyou  = strOpt "⚠ not jouyou";
+    };
+
+    anki = {
+      fields = lib.mkOption {
+        type = lib.types.attrsOf lib.types.str;
+        default = {};
+        description = ''
+          Map of Anki note type names to the field containing the
+          vocabulary word. Add entries for additional note types.
+        '';
       };
     };
   };
@@ -41,7 +62,8 @@ in
       )
     ];
 
-    xdg.configFile."jisho/colors.json".text =
-      builtins.toJSON cfg.colors;
+    xdg.configFile."jisho/config.json".text = builtins.toJSON {
+      inherit (cfg) colors badges anki;
+    };
   };
 }

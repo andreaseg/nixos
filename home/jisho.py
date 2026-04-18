@@ -18,19 +18,15 @@ WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
 WK_CACHE_TTL = 604800  # 7 days in seconds
 
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
-JISHO_COLORS_FILE = (
-    Path.home() / ".config" / "jisho" / "colors.json"
+JISHO_CONFIG_FILE = (
+    Path.home() / ".config" / "jisho" / "config.json"
 )
 
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
 ANKI_CACHE_TTL = 86400  # 1 day in seconds
 
-# Maps Anki note type names to the field containing the vocabulary word.
-# Add additional note types here as needed.
-ANKI_VOCAB_FIELDS: dict[str, str] = {
-    "Migaku Japanese CUSTOM STYLING": "Target Word Simplified",
-}
+DEFAULT_ANKI_FIELDS: dict[str, str] = {}
 
 
 # ── Colors ───────────────────────────────────────────────────────────────────
@@ -52,43 +48,78 @@ class Colors:
     text_value: str = "white"
 
 
-def load_colors() -> Colors:
+@dataclass
+class Badges:
+    anki: str = "★ Anki"
+    wk_prefix: str = "⬡ WaniKani L"
+    burned: str = " 🔥"
+    common: str = "● common"
+    jlpt_prefix: str = "● "
+    not_in_wk: str = "⚠ not in WaniKani"
+    not_jouyou: str = "⚠ not jouyou"
+
+
+@dataclass
+class Config:
+    colors: Colors
+    badges: Badges
+    anki_fields: dict[str, str]
+
+
+def _parse_colors(raw: dict) -> Colors:
     defaults = Colors()
-    if not JISHO_COLORS_FILE.exists():
-        return defaults
+    badge = raw.get("badge", {})
+    border = raw.get("border", {})
+    text = raw.get("text", {})
+    return Colors(
+        title=raw.get("title", defaults.title),
+        badge_anki=badge.get("anki", defaults.badge_anki),
+        badge_wk=badge.get("wanikani", defaults.badge_wk),
+        badge_common=badge.get("common", defaults.badge_common),
+        badge_jlpt=badge.get("jlpt", defaults.badge_jlpt),
+        badge_warning=badge.get(
+            "warning", defaults.badge_warning
+        ),
+        badge_danger=badge.get("danger", defaults.badge_danger),
+        border_anki=border.get("anki", defaults.border_anki),
+        border_wk=border.get("wanikani", defaults.border_wk),
+        border_default=border.get(
+            "default", defaults.border_default
+        ),
+        text_label=text.get("label", defaults.text_label),
+        text_value=text.get("value", defaults.text_value),
+    )
+
+
+def _parse_badges(raw: dict) -> Badges:
+    defaults = Badges()
+    return Badges(
+        anki=raw.get("anki", defaults.anki),
+        wk_prefix=raw.get("wkPrefix", defaults.wk_prefix),
+        burned=raw.get("burned", defaults.burned),
+        common=raw.get("common", defaults.common),
+        jlpt_prefix=raw.get("jlptPrefix", defaults.jlpt_prefix),
+        not_in_wk=raw.get("notInWk", defaults.not_in_wk),
+        not_jouyou=raw.get("notJouyou", defaults.not_jouyou),
+    )
+
+
+def load_config() -> Config:
+    fallback = Config(Colors(), Badges(), dict(DEFAULT_ANKI_FIELDS))
+    if not JISHO_CONFIG_FILE.exists():
+        return fallback
     try:
-        raw = json.loads(JISHO_COLORS_FILE.read_text())
-        badge = raw.get("badge", {})
-        border = raw.get("border", {})
-        text = raw.get("text", {})
-        return Colors(
-            title=raw.get("title", defaults.title),
-            badge_anki=badge.get("anki", defaults.badge_anki),
-            badge_wk=badge.get("wanikani", defaults.badge_wk),
-            badge_common=badge.get(
-                "common", defaults.badge_common
+        raw = json.loads(JISHO_CONFIG_FILE.read_text())
+        anki = raw.get("anki", {})
+        return Config(
+            colors=_parse_colors(raw.get("colors", {})),
+            badges=_parse_badges(raw.get("badges", {})),
+            anki_fields=anki.get(
+                "fields", dict(DEFAULT_ANKI_FIELDS)
             ),
-            badge_jlpt=badge.get("jlpt", defaults.badge_jlpt),
-            badge_warning=badge.get(
-                "warning", defaults.badge_warning
-            ),
-            badge_danger=badge.get(
-                "danger", defaults.badge_danger
-            ),
-            border_anki=border.get(
-                "anki", defaults.border_anki
-            ),
-            border_wk=border.get(
-                "wanikani", defaults.border_wk
-            ),
-            border_default=border.get(
-                "default", defaults.border_default
-            ),
-            text_label=text.get("label", defaults.text_label),
-            text_value=text.get("value", defaults.text_value),
         )
     except (json.JSONDecodeError, KeyError):
-        return defaults
+        return fallback
 
 
 # ── Dataclasses ──────────────────────────────────────────────────────────────
@@ -278,10 +309,10 @@ def anki_request(action: str, **params) -> object:
     return result["result"]
 
 
-def anki_fetch_words() -> set[str] | None:
+def anki_fetch_words(fields: dict[str, str]) -> set[str] | None:
     try:
         words: set[str] = set()
-        for note_type, field_name in ANKI_VOCAB_FIELDS.items():
+        for note_type, field_name in fields.items():
             note_ids = anki_request(
                 "findNotes", query=f'note:"{note_type}"'
             )
@@ -322,8 +353,8 @@ def anki_save_cache(words: set[str]) -> None:
     }))
 
 
-def get_anki_words() -> set[str]:
-    live = anki_fetch_words()
+def get_anki_words(fields: dict[str, str]) -> set[str]:
+    live = anki_fetch_words(fields)
     if live is not None:
         anki_save_cache(live)
         return live
@@ -527,10 +558,12 @@ class RichFormatter:
         self,
         console: Console,
         colors: Colors,
+        badges: Badges,
         verbose: bool = False,
     ) -> None:
         self.console = console
         self.colors = colors
+        self.badges = badges
         self.verbose = verbose
 
     def output(self, result: LookupResult) -> None:
@@ -552,26 +585,29 @@ class RichFormatter:
 
     def _render_vocab(self, entry: VocabEntry) -> None:
         c = self.colors
+        b = self.badges
         title = Text()
         title.append(entry.word or entry.reading, style=c.title)
 
         badges = Text()
         if entry.in_anki:
-            badges.append("★ Anki", style=c.badge_anki)
+            badges.append(b.anki, style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
-            wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+            wk_badge = f"{b.wk_prefix}{entry.wk_level}"
             if entry.wk_burned:
-                wk_badge += " 🔥"
+                wk_badge += b.burned
             badges.append(wk_badge, style=c.badge_wk)
             badges.append("  ")
         if entry.is_common:
-            badges.append("● common", style=c.badge_common)
+            badges.append(b.common, style=c.badge_common)
         if entry.jlpt:
             if entry.is_common:
                 badges.append("  ")
             jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
-            badges.append(f"● {jlpt_str}", style=c.badge_jlpt)
+            badges.append(
+                f"{b.jlpt_prefix}{jlpt_str}", style=c.badge_jlpt
+            )
 
         body = Text()
         body.append("  Readings: ", style=c.text_label)
@@ -596,22 +632,23 @@ class RichFormatter:
 
     def _render_kanji(self, entry: KanjiEntry) -> None:
         c = self.colors
+        b = self.badges
         title = Text(entry.character, style=c.title)
 
         badges = Text()
         if entry.in_anki:
-            badges.append("★ Anki", style=c.badge_anki)
+            badges.append(b.anki, style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
-            wk_badge = f"⬡ WaniKani L{entry.wk_level}"
+            wk_badge = f"{b.wk_prefix}{entry.wk_level}"
             if entry.wk_burned:
-                wk_badge += " 🔥"
+                wk_badge += b.burned
             badges.append(wk_badge, style=c.badge_wk)
         else:
-            badges.append("⚠ not in WaniKani", style=c.badge_warning)
+            badges.append(b.not_in_wk, style=c.badge_warning)
         if not entry.is_jouyou:
             badges.append("  ")
-            badges.append("⚠ not jouyou", style=c.badge_danger)
+            badges.append(b.not_jouyou, style=c.badge_danger)
 
         body = Text()
         if entry.meanings:
@@ -670,9 +707,10 @@ def main() -> None:
     args = parser.parse_args()
 
     query = " ".join(args.query)
+    config = load_config()
     token = get_wanikani_token()
     wk_subjects = get_wk_subjects(token)
-    anki_words = get_anki_words()
+    anki_words = get_anki_words(config.anki_fields)
 
     try:
         result = lookup(query, wk_subjects, anki_words)
@@ -700,7 +738,8 @@ def main() -> None:
     else:
         formatter = RichFormatter(
             Console(force_terminal=True),
-            load_colors(),
+            config.colors,
+            config.badges,
             verbose=args.verbose,
         )
 
