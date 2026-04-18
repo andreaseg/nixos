@@ -12,7 +12,6 @@
   home.homeDirectory = "/home/a";
 
   home.packages = with pkgs; [
-    (pkgs.writers.writePython3Bin "shell-tip" {} (builtins.readFile ./shell-tip.py))
     kdePackages.kate
     google-chrome
     mpv
