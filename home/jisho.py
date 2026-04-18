@@ -809,7 +809,6 @@ class CompactFormatter:
 
     def _render_vocab(self, entry: VocabEntry) -> None:
         c = self.colors
-        b = self.badges
         line = Text()
         line.append(entry.word or entry.reading, style=c.title)
         if entry.word:
@@ -820,22 +819,19 @@ class CompactFormatter:
         if entry.in_anki:
             line.append("  A", style=c.badge_anki)
         if entry.wk_level is not None:
-            wk = f"{b.wk_prefix}{entry.wk_level}"
+            wk = f"  🐢{entry.wk_level}"
             if entry.wk_burned:
-                wk += b.burned
-            line.append(f"  {wk}", style=c.badge_wk)
+                wk += "🔥"
+            line.append(wk, style=c.badge_wk)
         if entry.is_common:
-            line.append(f"  {b.common}", style=c.badge_common)
+            line.append("  C", style=c.badge_common)
         if entry.jlpt:
             jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
-            line.append(
-                f"  {b.jlpt_prefix}{jlpt_str}", style=c.badge_jlpt
-            )
+            line.append(f"  {jlpt_str}", style=c.badge_jlpt)
         self.console.print(line)
 
     def _render_kanji(self, entry: KanjiEntry) -> None:
         c = self.colors
-        b = self.badges
         line = Text()
         line.append(entry.character, style=c.title)
         readings = ", ".join(entry.on_readings + entry.kun_readings)
@@ -848,14 +844,14 @@ class CompactFormatter:
         if entry.in_anki:
             line.append("  A", style=c.badge_anki)
         if entry.wk_level is not None:
-            wk = f"{b.wk_prefix}{entry.wk_level}"
+            wk = f"  🐢{entry.wk_level}"
             if entry.wk_burned:
-                wk += b.burned
-            line.append(f"  {wk}", style=c.badge_wk)
+                wk += "🔥"
+            line.append(wk, style=c.badge_wk)
         else:
-            line.append(f"  {b.not_in_wk}", style=c.badge_warning)
+            line.append("  ∅🐢", style=c.badge_warning)
         if not entry.is_jouyou:
-            line.append(f"  {b.not_jouyou}", style=c.badge_danger)
+            line.append("  ∅J", style=c.badge_danger)
         self.console.print(line)
 
 
