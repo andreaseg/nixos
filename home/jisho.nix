@@ -27,8 +27,9 @@ in
         default  = strOpt "blue";
       };
       text = {
-        label = strOpt "italic dim";
-        value = strOpt "white";
+        label   = strOpt "italic dim";
+        value   = strOpt "white";
+        reading = strOpt "cyan";
       };
     };
 

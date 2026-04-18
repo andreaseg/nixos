@@ -47,6 +47,7 @@ class Colors:
     border_default: str = "blue"
     text_label: str = "italic dim"
     text_value: str = "white"
+    text_reading: str = "cyan"
 
 
 @dataclass
@@ -97,6 +98,7 @@ def _parse_colors(raw: dict) -> Colors:
         ),
         text_label=text.get("label", defaults.text_label),
         text_value=text.get("value", defaults.text_value),
+        text_reading=text.get("reading", defaults.text_reading),
     )
 
 
@@ -814,7 +816,7 @@ class CompactFormatter:
         line = Text()
         line.append(entry.word or entry.reading, style=c.title)
         if entry.word:
-            line.append(f" {entry.reading}", style="cyan")
+            line.append(f" {entry.reading}", style=c.text_reading)
         line.append(
             f" {', '.join(entry.meanings)}", style=c.text_value
         )
@@ -838,7 +840,7 @@ class CompactFormatter:
         line.append(entry.character, style=c.title)
         readings = ", ".join(entry.on_readings + entry.kun_readings)
         if readings:
-            line.append(f" {readings}", style="cyan")
+            line.append(f" {readings}", style=c.text_reading)
         if entry.meanings:
             line.append(
                 f" {', '.join(entry.meanings)}", style=c.text_value

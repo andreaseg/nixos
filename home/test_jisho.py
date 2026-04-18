@@ -56,6 +56,7 @@ def test_parse_colors_defaults():
     assert c.badge_wk == "bold magenta"
     assert c.border_default == "blue"
     assert c.text_label == "italic dim"
+    assert c.text_reading == "cyan"
 
 
 def test_parse_colors_overrides():
