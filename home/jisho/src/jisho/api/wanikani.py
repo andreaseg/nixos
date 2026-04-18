@@ -5,7 +5,7 @@ from pathlib import Path
 
 import requests
 
-from .utils import to_katakana
+from ..utils import to_katakana
 
 WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"

@@ -1,7 +1,7 @@
 import requests
 
-from .model import VocabEntry, KanjiEntry, LookupResult
-from .utils import to_katakana, extract_kanji
+from ..model import VocabEntry, KanjiEntry, LookupResult
+from ..utils import to_katakana, extract_kanji
 from .kanji import lookup_kanji_chars
 
 JISHO_API = "https://jisho.org/api/v1/search/words"

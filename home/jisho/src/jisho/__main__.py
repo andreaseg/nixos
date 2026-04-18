@@ -7,9 +7,9 @@ import requests
 from rich.console import Console
 
 from .config import load_config
-from .wanikani import get_wanikani_token, get_wk_subjects
-from .anki import get_anki_words
-from .lookup import lookup
+from .api.wanikani import get_wanikani_token, get_wk_subjects
+from .api.anki import get_anki_words
+from .api.jisho import lookup
 from .formatters import Formatter, RichFormatter, CompactFormatter, JsonFormatter
 from .init_config import cmd_init_config
 
