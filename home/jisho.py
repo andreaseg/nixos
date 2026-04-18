@@ -65,6 +65,10 @@ class KanjiEntry:
     burned: bool = False
     in_anki: bool = False
 
+    @property
+    def unknown(self) -> bool:
+        return not self.in_anki and not self.burned
+
 
 @dataclass
 class LookupResult:
@@ -469,18 +473,24 @@ class Formatter(Protocol):
 
 
 class RichFormatter:
-    def __init__(self, console: Console) -> None:
+    def __init__(self, console: Console, verbose: bool = False) -> None:
         self.console = console
+        self.verbose = verbose
 
     def output(self, result: LookupResult) -> None:
         for entry in result.vocabulary:
             self._render_vocab(entry)
             self.console.print()
 
-        if result.kanji:
-            self.console.print(Rule("Kanji", style="dim"))
+        kanji = (
+            result.kanji if self.verbose
+            else [k for k in result.kanji if k.unknown]
+        )
+        if kanji:
+            title = "Kanji" if self.verbose else "Unknown Kanji"
+            self.console.print(Rule(title, style="dim"))
             self.console.print()
-            for entry in result.kanji:
+            for entry in kanji:
                 self._render_kanji(entry)
                 self.console.print()
 
@@ -618,6 +628,10 @@ def main() -> None:
     parser.add_argument(
         "--json", action="store_true", help="Output as JSON"
     )
+    parser.add_argument(
+        "--verbose", action="store_true",
+        help="Show all kanji, not just unknown ones",
+    )
     args = parser.parse_args()
 
     query = " ".join(args.query)
@@ -649,7 +663,9 @@ def main() -> None:
     if args.json:
         formatter = JsonFormatter()
     else:
-        formatter = RichFormatter(Console(force_terminal=True))
+        formatter = RichFormatter(
+            Console(force_terminal=True), verbose=args.verbose
+        )
 
     formatter.output(result)
 
