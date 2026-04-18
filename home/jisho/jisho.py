@@ -550,7 +550,6 @@ def lookup(
     if not results:
         return LookupResult(query=query, vocabulary=[], kanji=[])
 
-    in_anki = query in anki_words
     exact = [r for r in results if is_exact_match(r, query)]
 
     # When the query has an exact match, show only those entries.
@@ -560,34 +559,25 @@ def lookup(
     to_show = pool[:limit]
     more = len(pool) - len(to_show)
 
-    wk_vocab: dict | None = None
-    if exact:
-        jisho_reading = (
-            exact[0].get("japanese", [{}])[0].get("reading", "")
-        )
-        wk_candidate = wk_subjects["vocabulary"].get(query)
-        if wk_candidate:
-            # Verify Jisho's reading against WaniKani's before enriching.
-            # The same written form can have multiple readings (e.g. 上手
-            # as じょうず vs うまい), so a slug match alone is not enough.
-            if jisho_reading in wk_candidate["readings"]:
-                wk_vocab = wk_candidate
-
     vocabulary: list[VocabEntry] = []
     for raw in to_show:
         first = raw.get("japanese", [{}])[0]
         reading = first.get("reading", "")
         word = first.get("word", "")
-        is_match = word == query or reading == query
-        use_wk = (
-            wk_vocab is not None
-            and is_match
-            and reading in wk_vocab["readings"]
-        )
+
+        # Match by the result's own word/reading, not the query — so
+        # searching by reading (ねこ) or meaning (cat) still enriches
+        # correctly when the result's word (猫) is in Anki or WaniKani.
+        entry_in_anki = word in anki_words or reading in anki_words
+
+        # Verify reading before accepting the WK match — the same written
+        # form can have multiple readings (e.g. 上手 as じょうず vs うまい).
+        wk = wk_subjects["vocabulary"].get(word)
+        if wk and reading not in wk["readings"]:
+            wk = None
+
         vocabulary.append(parse_vocab_entry(
-            raw,
-            wk_vocab if use_wk else None,
-            in_anki=in_anki and is_match,
+            raw, wk, in_anki=entry_in_anki,
         ))
 
     kanji_chars = extract_kanji(query)
