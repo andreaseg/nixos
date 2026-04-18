@@ -1,20 +1,12 @@
-"""Unit tests for jisho.py"""
-import importlib.util
-import sys
+"""Unit tests for the jisho package."""
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-# ---------------------------------------------------------------------------
-# Import jisho as a module (guarded by if __name__ == "__main__")
-# ---------------------------------------------------------------------------
-
-_spec = importlib.util.spec_from_file_location(
-    "jisho", Path(__file__).parent / "jisho.py"
-)
-jisho = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(jisho)
+import jisho
+import jisho.anki
+import jisho.kanji
 
 
 # ---------------------------------------------------------------------------
@@ -263,23 +255,23 @@ _FIELDS = {"My Note Type": "Word Field"}
 
 def test_get_anki_words_live_success():
     live = {"猫", "犬"}
-    with patch.object(jisho, "anki_fetch_words", return_value=live):
-        with patch.object(jisho, "anki_save_cache"):
+    with patch.object(jisho.anki, "anki_fetch_words", return_value=live):
+        with patch.object(jisho.anki, "anki_save_cache"):
             words, warnings = jisho.get_anki_words(_FIELDS, stale=604800)
     assert words == live
     assert warnings == []
 
 
 def test_get_anki_words_no_fields_no_warning():
-    with patch.object(jisho, "anki_fetch_words", return_value=None):
+    with patch.object(jisho.anki, "anki_fetch_words", return_value=None):
         words, warnings = jisho.get_anki_words({}, stale=604800)
     assert words == set()
     assert warnings == []
 
 
 def test_get_anki_words_no_cache_warns():
-    with patch.object(jisho, "anki_fetch_words", return_value=None):
-        with patch.object(jisho, "anki_load_cache", return_value=None):
+    with patch.object(jisho.anki, "anki_fetch_words", return_value=None):
+        with patch.object(jisho.anki, "anki_load_cache", return_value=None):
             words, warnings = jisho.get_anki_words(_FIELDS, stale=604800)
     assert words == set()
     assert len(warnings) == 1
@@ -288,8 +280,8 @@ def test_get_anki_words_no_cache_warns():
 
 def test_get_anki_words_stale_cache_warns():
     cached = ({"猫"}, True)  # (words, is_stale=True)
-    with patch.object(jisho, "anki_fetch_words", return_value=None):
-        with patch.object(jisho, "anki_load_cache", return_value=cached):
+    with patch.object(jisho.anki, "anki_fetch_words", return_value=None):
+        with patch.object(jisho.anki, "anki_load_cache", return_value=cached):
             words, warnings = jisho.get_anki_words(_FIELDS, stale=604800)
     assert "猫" in words
     assert len(warnings) == 1
@@ -298,8 +290,8 @@ def test_get_anki_words_stale_cache_warns():
 
 def test_get_anki_words_fresh_cache_no_warning():
     cached = ({"猫"}, False)  # (words, is_stale=False)
-    with patch.object(jisho, "anki_fetch_words", return_value=None):
-        with patch.object(jisho, "anki_load_cache", return_value=cached):
+    with patch.object(jisho.anki, "anki_fetch_words", return_value=None):
+        with patch.object(jisho.anki, "anki_load_cache", return_value=cached):
             words, warnings = jisho.get_anki_words(_FIELDS, stale=604800)
     assert "猫" in words
     assert warnings == []
@@ -355,8 +347,6 @@ def test_default_config_dict_structure():
 
 
 def test_default_config_dict_roundtrips():
-    # Writing defaults and reading them back should produce the same config
-    # as the no-file fallback.
     import json as _json
     raw = _json.loads(_json.dumps(jisho.default_config_dict()))
     # At minimum, the dict must be valid JSON and parse without error.
@@ -385,7 +375,6 @@ def test_is_nix_managed_nix_store_symlink(tmp_path):
     target.write_text("{}")
     link = tmp_path / "link.json"
     link.symlink_to(target)
-    # Patch resolve to simulate a /nix/store path
     with patch.object(link.__class__, "resolve",
                       return_value=Path("/nix/store/abc/config.json")):
         assert jisho.is_nix_managed(link) is True
@@ -397,14 +386,14 @@ def test_is_nix_managed_nix_store_symlink(tmp_path):
 
 
 def test_kanji_load_cache_missing(tmp_path):
-    with patch.object(jisho, "KANJI_CACHE_FILE", tmp_path / "k.json"):
+    with patch.object(jisho.kanji, "KANJI_CACHE_FILE", tmp_path / "k.json"):
         assert jisho.kanji_load_cache() == {}
 
 
 def test_kanji_cache_roundtrip(tmp_path):
     cache_path = tmp_path / "k.json"
     data = {"猫": {"meanings": ["cat"], "grade": 8}}
-    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
+    with patch.object(jisho.kanji, "KANJI_CACHE_FILE", cache_path):
         jisho.kanji_save_cache(data)
         assert jisho.kanji_load_cache() == data
 
@@ -413,8 +402,8 @@ def test_lookup_kanji_chars_uses_cache(tmp_path):
     cached = {"猫": {"meanings": ["cat"]}}
     cache_path = tmp_path / "k.json"
     cache_path.write_text(__import__("json").dumps(cached))
-    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
-        with patch.object(jisho, "lookup_kanji_data") as mock_fetch:
+    with patch.object(jisho.kanji, "KANJI_CACHE_FILE", cache_path):
+        with patch.object(jisho.kanji, "lookup_kanji_data") as mock_fetch:
             result = jisho.lookup_kanji_chars(["猫"])
     mock_fetch.assert_not_called()
     assert result["猫"] == {"meanings": ["cat"]}
@@ -422,13 +411,13 @@ def test_lookup_kanji_chars_uses_cache(tmp_path):
 
 def test_lookup_kanji_chars_fetches_missing(tmp_path):
     cache_path = tmp_path / "k.json"
-    with patch.object(jisho, "KANJI_CACHE_FILE", cache_path):
+    with patch.object(jisho.kanji, "KANJI_CACHE_FILE", cache_path):
         with patch.object(
-            jisho, "lookup_kanji_data", return_value={"meanings": ["dog"]}
+            jisho.kanji, "lookup_kanji_data",
+            return_value={"meanings": ["dog"]},
         ):
             result = jisho.lookup_kanji_chars(["犬"])
     assert result["犬"] == {"meanings": ["dog"]}
-    # Saved to cache
     assert cache_path.exists()
 
 
