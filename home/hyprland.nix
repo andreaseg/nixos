@@ -41,8 +41,8 @@
         gaps_in = 5;
         gaps_out = 10;
         border_size = 2;
-        "col.active_border" = "rgba(33ccffee) rgba(00ff99ee) 45deg";
-        "col.inactive_border" = "rgba(595959aa)";
+        "col.active_border" = "rgba(7E9CD8ee) rgba(957FB8ee) 45deg";
+        "col.inactive_border" = "rgba(2A2A37ff)";
         layout = "dwindle";
       };
 
@@ -202,20 +202,42 @@
       }
 
       window#waybar {
-        background-color: rgba(43, 48, 59, 0.9);
-        color: #ffffff;
+        background-color: rgba(31, 31, 40, 0.92); /* sumiInk1 */
+        color: #DCD7BA;                            /* fujiWhite */
       }
 
       #workspaces button {
         padding: 0 5px;
-        color: #ffffff;
+        color: #727169; /* fujiGray */
       }
 
       #workspaces button.active {
-        background-color: #64727D;
+        color: #DCD7BA;
+        background-color: #2D4F67; /* waveBlue2 */
+        border-radius: 4px;
       }
 
-      #clock, #battery, #pulseaudio, #network, #tray {
+      #workspaces button:hover {
+        background-color: #223249; /* waveBlue1 */
+        border-radius: 4px;
+      }
+
+      #clock {
+        color: #7E9CD8; /* crystalBlue */
+        padding: 0 10px;
+      }
+
+      #battery {
+        color: #98BB6C; /* springGreen */
+        padding: 0 10px;
+      }
+
+      #pulseaudio {
+        color: #FFA066; /* surimiOrange */
+        padding: 0 10px;
+      }
+
+      #tray {
         padding: 0 10px;
       }
     '';
@@ -232,7 +254,7 @@
     };
     style = ''
       window {
-        background-color: rgba(43, 48, 59, 0.95);
+        background-color: rgba(31, 31, 40, 0.97); /* sumiInk1 */
         border-radius: 10px;
       }
 
@@ -240,16 +262,18 @@
         margin: 10px;
         border: none;
         border-radius: 5px;
-        background-color: #3b4252;
-        color: #eceff4;
+        background-color: #2A2A37; /* sumiInk2 */
+        color: #DCD7BA;            /* fujiWhite */
       }
 
       #entry {
         padding: 10px;
+        color: #C8C093; /* oldWhite */
       }
 
       #entry:selected {
-        background-color: #4c566a;
+        background-color: #2D4F67; /* waveBlue2 */
+        color: #DCD7BA;
       }
     '';
   };
@@ -264,9 +288,9 @@
     settings = {
       default-timeout = 5000;
       border-radius = 5;
-      background-color = "#2b303b";
-      text-color = "#ffffff";
-      border-color = "#33ccff";
+      background-color = "#1F1F28"; /* sumiInk1 */
+      text-color = "#DCD7BA";      /* fujiWhite */
+      border-color = "#7E9CD8";    /* crystalBlue */
     };
   };
 }
