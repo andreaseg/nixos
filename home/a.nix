@@ -30,6 +30,7 @@
   programs.git.enable = true;
   programs.jisho = {
     enable = true;
+    wanikani.enable = true;
     anki.fields = {
       "Migaku Japanese CUSTOM STYLING" = "Target Word Simplified";
     };

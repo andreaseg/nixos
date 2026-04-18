@@ -75,6 +75,7 @@ class Config:
     anki_fields: dict[str, str]
     cache: Cache
     format: str = "rich"
+    wanikani_enabled: bool = False
 
 
 def _parse_colors(raw: dict) -> Colors:
@@ -131,12 +132,14 @@ def load_config() -> Config:
     try:
         raw = json.loads(JISHO_CONFIG_FILE.read_text())
         anki = raw.get("anki", {})
+        wk = raw.get("wanikani", {})
         return Config(
             colors=_parse_colors(raw.get("colors", {})),
             badges=_parse_badges(raw.get("badges", {})),
             anki_fields=anki.get("fields", {}),
             cache=_parse_cache(raw.get("cache", {})),
             format=raw.get("format", "rich"),
+            wanikani_enabled=wk.get("enable", False),
         )
     except (json.JSONDecodeError, KeyError):
         return fallback
@@ -167,6 +170,7 @@ class KanjiEntry:
     wk_level: int | None = None
     wk_burned: bool = False
     in_anki: bool = False
+    jlpt: int | None = None
 
     @property
     def unknown(self) -> bool:
@@ -536,11 +540,12 @@ def parse_kanji_entry(
     kanji_data: dict | None,
     in_anki: bool = False,
 ) -> KanjiEntry:
-    # jouyou grade comes from kanjiapi regardless of which source we use
-    # for meanings/readings, so compute it up front.
+    # jouyou grade and JLPT come from kanjiapi regardless of which source
+    # we use for meanings/readings, so compute them up front.
     is_jouyou = (
         kanji_data is not None and kanji_data.get("grade") is not None
     )
+    jlpt = kanji_data.get("jlpt") if kanji_data else None
 
     if wk_subject:
         return KanjiEntry(
@@ -552,6 +557,7 @@ def parse_kanji_entry(
             wk_level=wk_subject["level"],
             wk_burned=wk_subject["burned"],
             in_anki=in_anki,
+            jlpt=jlpt,
         )
 
     if kanji_data:
@@ -567,6 +573,7 @@ def parse_kanji_entry(
             kun_readings=kanji_data.get("kun_readings", []),
             is_jouyou=is_jouyou,
             in_anki=in_anki,
+            jlpt=jlpt,
         )
 
     return KanjiEntry(
@@ -773,6 +780,11 @@ class RichFormatter:
         if not entry.is_jouyou:
             badges.append("  ")
             badges.append(b.not_jouyou, style=c.badge_danger)
+        if entry.jlpt is not None:
+            jlpt_str = f"N{entry.jlpt}"
+            badges.append(
+                f"  {b.jlpt_prefix}{jlpt_str}", style=c.badge_jlpt
+            )
 
         body = Text()
         if entry.meanings or entry.on_readings or entry.kun_readings:
@@ -921,6 +933,8 @@ class CompactFormatter:
             line.append("  ∅🐢", style=c.badge_warning)
         if not entry.is_jouyou:
             line.append("  ∅J", style=c.badge_danger)
+        if entry.jlpt is not None:
+            line.append(f"  N{entry.jlpt}", style=c.badge_jlpt)
         self.console.print(line)
 
 
@@ -980,6 +994,7 @@ def default_config_dict() -> dict:
             "wkTtl": ca.wk_ttl,
             "ankiStaleTtl": ca.anki_stale,
         },
+        "wanikani": {"enable": False},
     }
 
 
@@ -1085,14 +1100,28 @@ def main() -> None:
     args = parser.parse_args()
 
     query = " ".join(args.query)
-    token = get_wanikani_token()
-    wk_subjects = get_wk_subjects(token, config.cache.wk_ttl)
+    warnings: list[str] = []
+
+    if config.wanikani_enabled:
+        token = get_wanikani_token()
+        if not token:
+            warnings.append(
+                "WaniKani is enabled but no token is set —"
+                " set WANIKANI_API_TOKEN or write your token to"
+                " ~/.config/wanikani/token."
+            )
+        wk_subjects = get_wk_subjects(token, config.cache.wk_ttl)
+    else:
+        wk_subjects = {"vocabulary": {}, "kanji": {}}
+
     anki_words, anki_warnings = get_anki_words(
         config.anki_fields, config.cache.anki_stale
     )
-    if anki_warnings:
+    warnings.extend(anki_warnings)
+
+    if warnings:
         warn = Console(stderr=True, force_terminal=True)
-        for w in anki_warnings:
+        for w in warnings:
             warn.print(f"[yellow]Warning:[/yellow] {w}")
 
     try:

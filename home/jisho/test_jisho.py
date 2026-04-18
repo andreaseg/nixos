@@ -182,6 +182,7 @@ _WK_KANJI = {
 
 _KANJIAPI_DATA = {
     "grade": 8,
+    "jlpt": 2,
     "meanings": ["cat"],
     "on_readings": ["BYO"],
     "kun_readings": ["neko"],
@@ -202,6 +203,18 @@ def test_parse_kanji_entry_kanjiapi_path():
     assert e.meanings == ["cat"]
     assert e.is_jouyou is True    # grade is not None
     assert e.wk_level is None
+    assert e.jlpt == 2
+
+
+def test_parse_kanji_entry_jlpt_from_kanjiapi_in_wk_path():
+    # JLPT comes from kanjiapi even when WK provides meanings/readings
+    e = jisho.parse_kanji_entry("猫", _WK_KANJI, _KANJIAPI_DATA)
+    assert e.jlpt == 2
+
+
+def test_parse_kanji_entry_no_jlpt():
+    e = jisho.parse_kanji_entry("猫", None, {"grade": 1, "meanings": []})
+    assert e.jlpt is None
 
 
 def test_parse_kanji_entry_no_data():
@@ -224,6 +237,7 @@ def _make_kanji(**kwargs):
     defaults = dict(
         character="猫", meanings=[], on_readings=[], kun_readings=[],
         is_jouyou=False, wk_level=None, wk_burned=False, in_anki=False,
+        jlpt=None,
     )
     return jisho.KanjiEntry(**{**defaults, **kwargs})
 

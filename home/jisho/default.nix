@@ -52,6 +52,10 @@ in
       notJouyou  = strOpt "⚠ not jouyou";
     };
 
+    wanikani = {
+      enable = lib.mkEnableOption "WaniKani integration";
+    };
+
     anki = {
       fields = lib.mkOption {
         type = lib.types.attrsOf lib.types.str;
@@ -117,7 +121,7 @@ in
     ];
 
     xdg.configFile."jisho/config.json".text = builtins.toJSON {
-      inherit (cfg) colors badges anki cache format;
+      inherit (cfg) colors badges anki cache format wanikani;
     };
   };
 }
