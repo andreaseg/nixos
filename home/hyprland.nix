@@ -168,7 +168,8 @@
         height = 30;
         modules-left = [ "hyprland/workspaces" ];
         modules-center = [ "hyprland/window" ];
-        modules-right = [ "custom/ime" "pulseaudio" "network" "battery" "tray" "clock"];
+        # network is intentionally omitted — handled by nm-applet in tray
+        modules-right = [ "custom/ime" "pulseaudio" "battery" "tray" "clock"];
 
         "custom/ime" = {
           exec = "fcitx5-remote | awk '{print ($1==2) ? \"あ\" : \"A\"}'";
@@ -187,12 +188,6 @@
             default = [ "󰕿" "󰖀" "󰕾" ];
           };
           on-click = "pavucontrol";
-        };
-
-        network = {
-          format-wifi = "󰤨";
-          format-ethernet = "󰈀";
-          format-disconnected = "󰤭";
         };
 
         battery = {
