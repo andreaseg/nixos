@@ -951,7 +951,39 @@ def main() -> None:
 
     config = load_config()
     parser = argparse.ArgumentParser(
-        description="Japanese dictionary lookup"
+        prog="jisho",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=(
+            "Japanese dictionary lookup powered by jisho.org\n"
+            "\n"
+            "Looks up Japanese words and kanji with optional enrichment\n"
+            "from WaniKani and Anki. Results show readings, meanings,\n"
+            "JLPT level, and your learning status across both tools."
+        ),
+        epilog=(
+            "wanikani integration:\n"
+            "  Set WANIKANI_API_TOKEN or write your token to\n"
+            "  ~/.config/wanikani/token. Subject data is cached locally\n"
+            "  (see --help for cache TTL config).\n"
+            "\n"
+            "anki integration:\n"
+            "  Requires the AnkiConnect add-on running inside Anki.\n"
+            "  Configure note type → field mappings in your config file.\n"
+            "\n"
+            "subcommands:\n"
+            "  init-config [--force]\n"
+            "      Write a default config to "
+            "~/.config/jisho/config.json\n"
+            "      for easy editing. Aborts if the file is managed by\n"
+            "      Nix home-manager. Use --force to overwrite an\n"
+            "      existing unmanaged config.\n"
+            "\n"
+            "examples:\n"
+            "  jisho 猫\n"
+            "  jisho 日本語 --format compact\n"
+            "  jisho 勉強 --verbose --limit 10\n"
+            "  jisho init-config"
+        ),
     )
     parser.add_argument("query", nargs="+", help="Word to look up")
     parser.add_argument(
