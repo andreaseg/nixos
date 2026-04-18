@@ -27,6 +27,11 @@
         "__GLX_VENDOR_LIBRARY_NAME,nvidia"
         "NVD_BACKEND,direct"
         "ELECTRON_OZONE_PLATFORM_HINT,auto"
+        # Fcitx5 input method
+        "GTK_IM_MODULE,fcitx"
+        "QT_IM_MODULE,fcitx"
+        "XMODIFIERS,@im=fcitx"
+        "SDL_IM_MODULE,fcitx"
       ];
 
       cursor = {
@@ -89,6 +94,7 @@
         "mako"
         "nm-applet --indicator"
         "eww open clock"
+        "fcitx5 -d"
       ];
 
       # Keybindings
