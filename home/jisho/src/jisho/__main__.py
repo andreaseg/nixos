@@ -11,7 +11,7 @@ from .api.wanikani import get_wanikani_token, get_wk_subjects
 from .api.anki import get_anki_words
 from .api.jisho import lookup
 from .formatters import Formatter, RichFormatter, CompactFormatter, JsonFormatter
-from .init_config import cmd_init_config
+from .config import cmd_init_config
 
 
 def _limit_type(value: str) -> int | None:
