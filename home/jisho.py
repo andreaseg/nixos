@@ -18,6 +18,9 @@ WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
 WK_CACHE_TTL = 604800  # 7 days in seconds
 
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
+JISHO_COLORS_FILE = (
+    Path.home() / ".config" / "jisho" / "colors.json"
+)
 
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
@@ -28,6 +31,64 @@ ANKI_CACHE_TTL = 86400  # 1 day in seconds
 ANKI_VOCAB_FIELDS: dict[str, str] = {
     "Migaku Japanese CUSTOM STYLING": "Target Word Simplified",
 }
+
+
+# ── Colors ───────────────────────────────────────────────────────────────────
+
+
+@dataclass
+class Colors:
+    title: str = "bold cyan"
+    badge_anki: str = "bold green"
+    badge_wk: str = "bold magenta"
+    badge_common: str = "green"
+    badge_jlpt: str = "yellow"
+    badge_warning: str = "yellow"
+    badge_danger: str = "red"
+    border_anki: str = "green"
+    border_wk: str = "magenta"
+    border_default: str = "blue"
+    text_label: str = "italic dim"
+    text_value: str = "white"
+
+
+def load_colors() -> Colors:
+    defaults = Colors()
+    if not JISHO_COLORS_FILE.exists():
+        return defaults
+    try:
+        raw = json.loads(JISHO_COLORS_FILE.read_text())
+        badge = raw.get("badge", {})
+        border = raw.get("border", {})
+        text = raw.get("text", {})
+        return Colors(
+            title=raw.get("title", defaults.title),
+            badge_anki=badge.get("anki", defaults.badge_anki),
+            badge_wk=badge.get("wanikani", defaults.badge_wk),
+            badge_common=badge.get(
+                "common", defaults.badge_common
+            ),
+            badge_jlpt=badge.get("jlpt", defaults.badge_jlpt),
+            badge_warning=badge.get(
+                "warning", defaults.badge_warning
+            ),
+            badge_danger=badge.get(
+                "danger", defaults.badge_danger
+            ),
+            border_anki=border.get(
+                "anki", defaults.border_anki
+            ),
+            border_wk=border.get(
+                "wanikani", defaults.border_wk
+            ),
+            border_default=border.get(
+                "default", defaults.border_default
+            ),
+            text_label=text.get("label", defaults.text_label),
+            text_value=text.get("value", defaults.text_value),
+        )
+    except (json.JSONDecodeError, KeyError):
+        return defaults
 
 
 # ── Dataclasses ──────────────────────────────────────────────────────────────
@@ -462,8 +523,14 @@ class Formatter(Protocol):
 
 
 class RichFormatter:
-    def __init__(self, console: Console, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        console: Console,
+        colors: Colors,
+        verbose: bool = False,
+    ) -> None:
         self.console = console
+        self.colors = colors
         self.verbose = verbose
 
     def output(self, result: LookupResult) -> None:
@@ -484,35 +551,39 @@ class RichFormatter:
                 self.console.print()
 
     def _render_vocab(self, entry: VocabEntry) -> None:
+        c = self.colors
         title = Text()
-        title.append(entry.word or entry.reading, style="bold cyan")
+        title.append(entry.word or entry.reading, style=c.title)
 
         badges = Text()
         if entry.in_anki:
-            badges.append("★ Anki", style="bold green")
+            badges.append("★ Anki", style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
             wk_badge = f"⬡ WaniKani L{entry.wk_level}"
             if entry.wk_burned:
                 wk_badge += " 🔥"
-            badges.append(wk_badge, style="bold magenta")
+            badges.append(wk_badge, style=c.badge_wk)
             badges.append("  ")
         if entry.is_common:
-            badges.append("● common", style="green")
+            badges.append("● common", style=c.badge_common)
         if entry.jlpt:
             if entry.is_common:
                 badges.append("  ")
             jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
-            badges.append(f"● {jlpt_str}", style="yellow")
+            badges.append(f"● {jlpt_str}", style=c.badge_jlpt)
 
         body = Text()
-        body.append("  Readings: ", style="italic dim")
-        body.append(entry.reading + "\n", style="white")
-        body.append("  Meanings: ", style="italic dim")
-        body.append(", ".join(entry.meanings) + "\n", style="white")
+        body.append("  Readings: ", style=c.text_label)
+        body.append(entry.reading + "\n", style=c.text_value)
+        body.append("  Meanings: ", style=c.text_label)
+        body.append(
+            ", ".join(entry.meanings) + "\n", style=c.text_value
+        )
 
-        border = "green" if entry.in_anki else (
-            "magenta" if entry.wk_level is not None else "blue"
+        border = c.border_anki if entry.in_anki else (
+            c.border_wk if entry.wk_level is not None
+            else c.border_default
         )
         content = Text.assemble(badges, "\n\n", body) if badges else body
         self.console.print(Panel(
@@ -524,36 +595,41 @@ class RichFormatter:
         ))
 
     def _render_kanji(self, entry: KanjiEntry) -> None:
-        title = Text(entry.character, style="bold cyan")
+        c = self.colors
+        title = Text(entry.character, style=c.title)
 
         badges = Text()
         if entry.in_anki:
-            badges.append("★ Anki", style="bold green")
+            badges.append("★ Anki", style=c.badge_anki)
             badges.append("  ")
         if entry.wk_level is not None:
             wk_badge = f"⬡ WaniKani L{entry.wk_level}"
             if entry.wk_burned:
                 wk_badge += " 🔥"
-            badges.append(wk_badge, style="bold magenta")
+            badges.append(wk_badge, style=c.badge_wk)
         else:
-            badges.append("⚠ not in WaniKani", style="yellow")
+            badges.append("⚠ not in WaniKani", style=c.badge_warning)
         if not entry.is_jouyou:
             badges.append("  ")
-            badges.append("⚠ not jouyou", style="red")
+            badges.append("⚠ not jouyou", style=c.badge_danger)
 
         body = Text()
         if entry.meanings:
-            body.append("  Meanings: ", style="italic dim")
-            body.append(", ".join(entry.meanings) + "\n", style="white")
-        if entry.on_readings:
-            body.append("  On: ", style="italic dim")
+            body.append("  Meanings: ", style=c.text_label)
             body.append(
-                ", ".join(entry.on_readings) + "\n", style="white"
+                ", ".join(entry.meanings) + "\n", style=c.text_value
+            )
+        if entry.on_readings:
+            body.append("  On: ", style=c.text_label)
+            body.append(
+                ", ".join(entry.on_readings) + "\n",
+                style=c.text_value,
             )
         if entry.kun_readings:
-            body.append("  Kun: ", style="italic dim")
+            body.append("  Kun: ", style=c.text_label)
             body.append(
-                ", ".join(entry.kun_readings) + "\n", style="white"
+                ", ".join(entry.kun_readings) + "\n",
+                style=c.text_value,
             )
         if not entry.meanings:
             body.append("  No data found\n", style="dim")
@@ -563,7 +639,8 @@ class RichFormatter:
             title=title,
             title_align="left",
             border_style=(
-                "magenta" if entry.wk_level is not None else "blue"
+                c.border_wk if entry.wk_level is not None
+                else c.border_default
             ),
             padding=(0, 1),
         ))
@@ -622,7 +699,9 @@ def main() -> None:
         formatter = JsonFormatter()
     else:
         formatter = RichFormatter(
-            Console(force_terminal=True), verbose=args.verbose
+            Console(force_terminal=True),
+            load_colors(),
+            verbose=args.verbose,
         )
 
     formatter.output(result)

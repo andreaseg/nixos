@@ -26,6 +26,7 @@
   programs.home-manager.enable = true;
   programs.kitty.enable = true;
   programs.git.enable = true;
+  programs.jisho.enable = true;
 
   home.stateVersion = "25.11";
 }
