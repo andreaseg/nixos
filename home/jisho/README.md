@@ -74,8 +74,8 @@ burn status) is fetched from the WaniKani v2 API and cached locally for
 ## Anki integration
 
 Requires the [AnkiConnect](https://ankiweb.net/shared/info/2055492159)
-add-on installed and Anki running. Configure which note type and field
-contain your vocabulary words:
+add-on (id: **2055492159**) installed in Anki. Configure which note type
+and field contain your vocabulary words:
 
 ```json
 {
@@ -87,9 +87,10 @@ contain your vocabulary words:
 }
 ```
 
-Multiple note types are supported. Words are cached locally — if Anki
-is not running, jisho falls back to the cache and shows a warning if it
-is stale (older than 7 days by default).
+Multiple note types are supported. Words are cached locally after the
+first successful fetch, so **Anki only needs to be running occasionally**
+to keep the cache fresh. If Anki is not running, jisho falls back to the
+cache and shows a warning if it is stale (older than 7 days by default).
 
 ## Configuration
 
