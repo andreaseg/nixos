@@ -173,6 +173,7 @@ class LookupResult:
     query: str
     vocabulary: list[VocabEntry]
     kanji: list[KanjiEntry]
+    more_vocabulary: int = 0  # results beyond the display limit
 
 
 # ── Utilities ────────────────────────────────────────────────────────────────
@@ -537,6 +538,7 @@ def lookup(
     query: str,
     wk_subjects: dict,
     anki_words: set[str],
+    limit: int = 5,
 ) -> LookupResult:
     """Fetch and parse all data for a query. Raises on Jisho failure."""
     results = search_jisho(query)
@@ -550,7 +552,9 @@ def lookup(
     # When the query has an exact match, show only those entries.
     # Without this filter, Jisho returns loosely related results that
     # would flood the output for common words.
-    to_show = exact if exact else results[:5]
+    pool = exact if exact else results
+    to_show = pool[:limit]
+    more = len(pool) - len(to_show)
 
     wk_vocab: dict | None = None
     if exact:
@@ -603,7 +607,12 @@ def lookup(
             in_anki=char_in_anki,
         ))
 
-    return LookupResult(query=query, vocabulary=vocabulary, kanji=kanji)
+    return LookupResult(
+        query=query,
+        vocabulary=vocabulary,
+        kanji=kanji,
+        more_vocabulary=more,
+    )
 
 
 # ── Output strategies ────────────────────────────────────────────────────────
@@ -629,6 +638,14 @@ class RichFormatter:
     def output(self, result: LookupResult) -> None:
         for entry in result.vocabulary:
             self._render_vocab(entry)
+            self.console.print()
+
+        if result.more_vocabulary:
+            self.console.print(
+                f"  [dim]… {result.more_vocabulary} more result"
+                f"{'s' if result.more_vocabulary > 1 else ''}"
+                " — use --limit to show more[/dim]"
+            )
             self.console.print()
 
         kanji = (
@@ -774,6 +791,10 @@ def main() -> None:
         "--verbose", action="store_true",
         help="Show all kanji, not just unknown ones",
     )
+    parser.add_argument(
+        "--limit", type=int, default=5, metavar="N",
+        help="Maximum vocabulary results to show (default: 5)",
+    )
     args = parser.parse_args()
 
     query = " ".join(args.query)
@@ -789,7 +810,9 @@ def main() -> None:
             warn.print(f"[yellow]Warning:[/yellow] {w}")
 
     try:
-        result = lookup(query, wk_subjects, anki_words)
+        result = lookup(
+            query, wk_subjects, anki_words, limit=args.limit
+        )
     except requests.RequestException as e:
         if args.json:
             print(json.dumps({"error": str(e)}))
