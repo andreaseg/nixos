@@ -826,14 +826,20 @@ class CompactFormatter:
         c = self.colors
         line = Text()
         word = entry.word or entry.reading
+        w = cell_len(word)
         line.append(word, style=c.title)
-        # Pad to column width; outliers (wider than cap) get one space
-        line.append(" " * max(1, word_w - cell_len(word) + 1))
         if entry.word:
+            # Pad each column separately; outliers get one space
+            line.append(" " * max(1, word_w - w + 1))
+            r = cell_len(entry.reading)
             line.append(entry.reading, style=c.text_reading)
-            line.append(" " * max(1, read_w - cell_len(entry.reading) + 1))
-        elif read_w > 0:
-            line.append(" " * (read_w + 1))  # skip reading column
+            line.append(" " * max(1, read_w - r + 1))
+        else:
+            # No reading — pad both columns together so the meaning
+            # column stays aligned even when the word overflows word_w
+            line.append(
+                " " * max(1, word_w + read_w + 2 - w)
+            )
         line.append(", ".join(entry.meanings), style=c.text_value)
         if entry.in_anki:
             line.append("  A", style=c.badge_anki)
