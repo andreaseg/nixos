@@ -52,6 +52,25 @@ in
         '';
       };
     };
+
+    cache = {
+      wkTtl = lib.mkOption {
+        type = lib.types.int;
+        default = 604800;
+        description = ''
+          WaniKani cache TTL in seconds. The cache is refreshed when
+          older than this value. Default: 604800 (7 days).
+        '';
+      };
+      ankiStaleTtl = lib.mkOption {
+        type = lib.types.int;
+        default = 604800;
+        description = ''
+          Anki cache age in seconds at which a stale warning is shown.
+          Default: 604800 (7 days).
+        '';
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -63,7 +82,7 @@ in
     ];
 
     xdg.configFile."jisho/config.json".text = builtins.toJSON {
-      inherit (cfg) colors badges anki;
+      inherit (cfg) colors badges anki cache;
     };
   };
 }

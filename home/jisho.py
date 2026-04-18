@@ -15,7 +15,6 @@ from rich.text import Text
 WANIKANI_TOKEN_FILE = Path.home() / ".config" / "wanikani" / "token"
 WANIKANI_API = "https://api.wanikani.com/v2"
 WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
-WK_CACHE_TTL = 604800  # 7 days in seconds
 
 KANJIAPI = "https://kanjiapi.dev/v1/kanji"
 JISHO_CONFIG_FILE = (
@@ -24,7 +23,6 @@ JISHO_CONFIG_FILE = (
 
 ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
-ANKI_CACHE_TTL = 86400  # 1 day in seconds
 
 DEFAULT_ANKI_FIELDS: dict[str, str] = {}
 
@@ -60,10 +58,17 @@ class Badges:
 
 
 @dataclass
+class Cache:
+    wk_ttl: int = 604800     # WaniKani refresh threshold (7 days)
+    anki_stale: int = 604800  # Anki stale-warning threshold (7 days)
+
+
+@dataclass
 class Config:
     colors: Colors
     badges: Badges
     anki_fields: dict[str, str]
+    cache: Cache
 
 
 def _parse_colors(raw: dict) -> Colors:
@@ -104,8 +109,18 @@ def _parse_badges(raw: dict) -> Badges:
     )
 
 
+def _parse_cache(raw: dict) -> Cache:
+    defaults = Cache()
+    return Cache(
+        wk_ttl=raw.get("wkTtl", defaults.wk_ttl),
+        anki_stale=raw.get("ankiStaleTtl", defaults.anki_stale),
+    )
+
+
 def load_config() -> Config:
-    fallback = Config(Colors(), Badges(), dict(DEFAULT_ANKI_FIELDS))
+    fallback = Config(
+        Colors(), Badges(), dict(DEFAULT_ANKI_FIELDS), Cache()
+    )
     if not JISHO_CONFIG_FILE.exists():
         return fallback
     try:
@@ -117,6 +132,7 @@ def load_config() -> Config:
             anki_fields=anki.get(
                 "fields", dict(DEFAULT_ANKI_FIELDS)
             ),
+            cache=_parse_cache(raw.get("cache", {})),
         )
     except (json.JSONDecodeError, KeyError):
         return fallback
@@ -255,13 +271,13 @@ def wk_fetch_all(token: str) -> dict | None:
         return None
 
 
-def wk_load_cache() -> tuple[dict, bool] | None:
+def wk_load_cache(ttl: int) -> tuple[dict, bool] | None:
     """Return (data, is_expired), or None if no cache file exists."""
     if not WK_CACHE_FILE.exists():
         return None
     try:
         raw = json.loads(WK_CACHE_FILE.read_text())
-        expired = time.time() - raw["timestamp"] > WK_CACHE_TTL
+        expired = time.time() - raw["timestamp"] > ttl
         return raw["data"], expired
     except (json.JSONDecodeError, KeyError):
         return None
@@ -275,14 +291,14 @@ def wk_save_cache(data: dict) -> None:
     }))
 
 
-def get_wk_subjects(token: str | None) -> dict:
+def get_wk_subjects(token: str | None, ttl: int) -> dict:
     """Return cached WaniKani subjects, refreshing when possible."""
     empty = {"vocabulary": {}, "kanji": {}}
     if not token:
-        result = wk_load_cache()
+        result = wk_load_cache(ttl)
         return result[0] if result else empty
 
-    cached = wk_load_cache()
+    cached = wk_load_cache(ttl)
 
     if cached and not cached[1]:
         return cached[0]
@@ -333,14 +349,14 @@ def anki_fetch_words(fields: dict[str, str]) -> set[str] | None:
         return None
 
 
-def anki_load_cache() -> set[str] | None:
+def anki_load_cache(stale: int) -> tuple[set[str], bool] | None:
+    """Return (words, is_stale) or None if no cache file."""
     if not ANKI_CACHE_FILE.exists():
         return None
     try:
         data = json.loads(ANKI_CACHE_FILE.read_text())
-        if time.time() - data["timestamp"] > ANKI_CACHE_TTL:
-            return None
-        return set(data["words"])
+        age = time.time() - data["timestamp"]
+        return set(data["words"]), age > stale
     except (json.JSONDecodeError, KeyError):
         return None
 
@@ -353,13 +369,30 @@ def anki_save_cache(words: set[str]) -> None:
     }))
 
 
-def get_anki_words(fields: dict[str, str]) -> set[str]:
+def get_anki_words(
+    fields: dict[str, str],
+    stale: int,
+) -> tuple[set[str], list[str]]:
+    """Return (words, warnings)."""
     live = anki_fetch_words(fields)
     if live is not None:
         anki_save_cache(live)
-        return live
-    cached = anki_load_cache()
-    return cached if cached is not None else set()
+        return live, []
+    if not fields:
+        return set(), []
+    cached = anki_load_cache(stale)
+    if cached is None:
+        return set(), [
+            "Anki is not running and no cache exists —"
+            " start Anki to populate the cache."
+        ]
+    words, is_stale = cached
+    if is_stale:
+        return words, [
+            "Anki cache is stale (>7 days) —"
+            " start Anki to refresh it."
+        ]
+    return words, []
 
 
 # ── External lookups ─────────────────────────────────────────────────────────
@@ -709,8 +742,14 @@ def main() -> None:
     query = " ".join(args.query)
     config = load_config()
     token = get_wanikani_token()
-    wk_subjects = get_wk_subjects(token)
-    anki_words = get_anki_words(config.anki_fields)
+    wk_subjects = get_wk_subjects(token, config.cache.wk_ttl)
+    anki_words, anki_warnings = get_anki_words(
+        config.anki_fields, config.cache.anki_stale
+    )
+    if anki_warnings:
+        warn = Console(stderr=True, force_terminal=True)
+        for w in anki_warnings:
+            warn.print(f"[yellow]Warning:[/yellow] {w}")
 
     try:
         result = lookup(query, wk_subjects, anki_words)
