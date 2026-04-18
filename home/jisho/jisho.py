@@ -184,6 +184,49 @@ class LookupResult:
 # ── Utilities ────────────────────────────────────────────────────────────────
 
 
+def _is_katakana(c: str) -> bool:
+    return "\u30a0" <= c <= "\u30ff"
+
+
+def elide_shared_katakana(word: str, reading: str) -> str:
+    """Replace katakana shared at word/reading boundaries with …
+
+    When a word and its reading share katakana at the start or end
+    (e.g. トラ猫 / トラねこ), those characters are visually obvious
+    and can be replaced with … for compact display (→ …ねこ).
+    """
+    if not word or not reading:
+        return reading
+
+    # Count shared katakana at the start
+    prefix = 0
+    for wc, rc in zip(word, reading):
+        if _is_katakana(wc) and wc == rc:
+            prefix += 1
+        else:
+            break
+
+    # Count shared katakana at the end
+    suffix = 0
+    for wc, rc in zip(reversed(word), reversed(reading)):
+        if _is_katakana(wc) and wc == rc:
+            suffix += 1
+        else:
+            break
+
+    # Abort if elision would consume the entire reading
+    if prefix + suffix >= len(reading):
+        return reading
+
+    end = len(reading) - suffix if suffix else len(reading)
+    middle = reading[prefix:end]
+    return (
+        ("…" if prefix else "")
+        + middle
+        + ("…" if suffix else "")
+    )
+
+
 def to_katakana(text: str) -> str:
     # Hiragana (U+3041–U+3096) and katakana (U+30A1–U+30F6) share the
     # same glyph layout with a fixed offset of 0x60, so we can convert
@@ -831,8 +874,9 @@ class CompactFormatter:
         if entry.word:
             # Pad each column separately; outliers get one space
             line.append(" " * max(1, word_w - w + 1))
-            r = cell_len(entry.reading)
-            line.append(entry.reading, style=c.text_reading)
+            reading = elide_shared_katakana(entry.word, entry.reading)
+            r = cell_len(reading)
+            line.append(reading, style=c.text_reading)
             line.append(" " * max(1, read_w - r + 1))
         else:
             # No reading — pad both columns together so the meaning

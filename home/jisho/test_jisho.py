@@ -292,6 +292,38 @@ def test_get_anki_words_fresh_cache_no_warning():
 
 
 # ---------------------------------------------------------------------------
+# elide_shared_katakana
+# ---------------------------------------------------------------------------
+
+
+def test_elide_shared_katakana_leading():
+    assert jisho.elide_shared_katakana("トラ猫", "トラねこ") == "…ねこ"
+
+
+def test_elide_shared_katakana_trailing():
+    assert jisho.elide_shared_katakana("猫キャット", "ねこキャット") == "ねこ…"
+
+
+def test_elide_shared_katakana_both():
+    assert jisho.elide_shared_katakana(
+        "トラ猫キャット", "トラねこキャット"
+    ) == "…ねこ…"
+
+
+def test_elide_shared_katakana_no_match():
+    assert jisho.elide_shared_katakana("黒猫", "くろねこ") == "くろねこ"
+
+
+def test_elide_shared_katakana_full_match_unchanged():
+    # If elision would consume the entire reading, return it as-is
+    assert jisho.elide_shared_katakana("キャット", "キャット") == "キャット"
+
+
+def test_elide_shared_katakana_empty():
+    assert jisho.elide_shared_katakana("猫", "") == ""
+
+
+# ---------------------------------------------------------------------------
 # init-config
 # ---------------------------------------------------------------------------
 
