@@ -496,12 +496,7 @@ class RichFormatter:
 
     def _render_vocab(self, entry: VocabEntry) -> None:
         title = Text()
-        if entry.word:
-            title.append(entry.word, style="bold cyan")
-            title.append("  ")
-            title.append(entry.reading, style="cyan")
-        else:
-            title.append(entry.reading, style="bold cyan")
+        title.append(entry.word or entry.reading, style="bold cyan")
 
         badges = Text()
         if entry.in_anki:
@@ -533,25 +528,11 @@ class RichFormatter:
                     ", ".join(entry.wk_readings) + "\n", style="white"
                 )
         else:
-            prev_pos: tuple[str, ...] = ()
-            for i, sense in enumerate(entry.senses, 1):
-                pos_key = tuple(sense.parts_of_speech)
-                if pos_key != prev_pos:
-                    if i > 1:
-                        body.append("\n")
-                    if sense.parts_of_speech:
-                        pos_label = (
-                            "  " + " · ".join(sense.parts_of_speech)
-                        )
-                        body.append(pos_label + "\n", style="italic dim")
-                    prev_pos = pos_key
-                body.append(f"  {i}. ", style="bold white")
-                body.append(", ".join(sense.definitions), style="white")
-                if sense.info:
-                    body.append(
-                        f"  ({', '.join(sense.info)})", style="dim"
-                    )
-                body.append("\n")
+            all_defs = [d for s in entry.senses for d in s.definitions]
+            body.append("  Readings: ", style="italic dim")
+            body.append(entry.reading + "\n", style="white")
+            body.append("  Meanings: ", style="italic dim")
+            body.append(", ".join(all_defs) + "\n", style="white")
 
         border = "green" if entry.in_anki else (
             "magenta" if entry.wk_level is not None else "blue"
