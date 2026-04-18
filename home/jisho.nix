@@ -11,8 +11,17 @@ in
   options.programs.jisho = {
     enable = lib.mkEnableOption "jisho Japanese dictionary CLI";
 
+    theme = lib.mkOption {
+      type = lib.types.enum [ "dark" "light" ];
+      default = "dark";
+      description = ''
+        Color theme preset. Sets sensible defaults for dark or light
+        terminals. Individual color options can still override.
+      '';
+    };
+
     colors = {
-      title    = strOpt "white";
+      title    = strOpt "default";
       badge = {
         anki     = strOpt "bold green";
         wanikani = strOpt "bold magenta";
@@ -28,7 +37,7 @@ in
       };
       text = {
         label   = strOpt "italic dim";
-        value   = strOpt "white";
+        value   = strOpt "default";
         reading = strOpt "cyan";
       };
     };
@@ -85,6 +94,21 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    # Theme-sensitive defaults — lower priority than explicit user values,
+    # higher priority than the strOpt defaults above.
+    programs.jisho.colors.text.reading = lib.mkDefault (
+      if cfg.theme == "light" then "blue" else "cyan"
+    );
+    programs.jisho.colors.text.label = lib.mkDefault (
+      if cfg.theme == "light" then "italic" else "italic dim"
+    );
+    programs.jisho.colors.badge.warning = lib.mkDefault (
+      if cfg.theme == "light" then "dark_orange" else "yellow"
+    );
+    programs.jisho.colors.badge.jlpt = lib.mkDefault (
+      if cfg.theme == "light" then "dark_orange" else "yellow"
+    );
+
     home.packages = [
       (pkgs.writers.writePython3Bin "jisho"
         { libraries = with pkgs.python3Packages; [ requests rich ]; }

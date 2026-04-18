@@ -35,7 +35,7 @@ JISHO_CONFIG_FILE = Path.home() / ".config" / "jisho" / "config.json"
 
 @dataclass
 class Colors:
-    title: str = "white"
+    title: str = "default"
     badge_anki: str = "bold green"
     badge_wk: str = "bold magenta"
     badge_common: str = "green"
@@ -46,7 +46,7 @@ class Colors:
     border_wk: str = "magenta"
     border_default: str = "blue"
     text_label: str = "italic dim"
-    text_value: str = "white"
+    text_value: str = "default"
     text_reading: str = "cyan"
 
 
