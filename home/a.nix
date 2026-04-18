@@ -18,6 +18,7 @@
     pavucontrol
     nerd-fonts.symbols-only
     python3
+    glow
   ];
 
   home.sessionVariables = {
