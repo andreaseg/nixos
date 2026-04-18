@@ -16,7 +16,7 @@ from jisho.config import (
 from jisho.model import VocabEntry, KanjiEntry, LookupResult
 from jisho.api.jisho import parse_vocab_entry, parse_kanji_entry
 from jisho.api.anki import get_anki_words
-from jisho.api.kanji import kanji_load_cache, kanji_save_cache, lookup_kanji_chars
+from jisho.api.kanji import lookup_kanji_chars
 from jisho.formatters import RichFormatter, CompactFormatter
 import jisho.api.anki as _anki
 import jisho.api.kanji as _kanji
@@ -268,23 +268,23 @@ _FIELDS = {"My Note Type": "Word Field"}
 
 def test_get_anki_words_live_success():
     live = {"猫", "犬"}
-    with patch.object(_anki, "anki_fetch_words", return_value=live):
-        with patch.object(_anki, "anki_save_cache"):
+    with patch.object(_anki, "_fetch_words", return_value=live):
+        with patch.object(_anki, "_save_cache"):
             words, warnings = get_anki_words(_FIELDS, stale=604800)
     assert words == live
     assert warnings == []
 
 
 def test_get_anki_words_no_fields_no_warning():
-    with patch.object(_anki, "anki_fetch_words", return_value=None):
+    with patch.object(_anki, "_fetch_words", return_value=None):
         words, warnings = get_anki_words({}, stale=604800)
     assert words == set()
     assert warnings == []
 
 
 def test_get_anki_words_no_cache_warns():
-    with patch.object(_anki, "anki_fetch_words", return_value=None):
-        with patch.object(_anki, "anki_load_cache", return_value=None):
+    with patch.object(_anki, "_fetch_words", return_value=None):
+        with patch.object(_anki, "_load_cache", return_value=None):
             words, warnings = get_anki_words(_FIELDS, stale=604800)
     assert words == set()
     assert len(warnings) == 1
@@ -293,8 +293,8 @@ def test_get_anki_words_no_cache_warns():
 
 def test_get_anki_words_stale_cache_warns():
     cached = ({"猫"}, True)  # (words, is_stale=True)
-    with patch.object(_anki, "anki_fetch_words", return_value=None):
-        with patch.object(_anki, "anki_load_cache", return_value=cached):
+    with patch.object(_anki, "_fetch_words", return_value=None):
+        with patch.object(_anki, "_load_cache", return_value=cached):
             words, warnings = get_anki_words(_FIELDS, stale=604800)
     assert "猫" in words
     assert len(warnings) == 1
@@ -303,8 +303,8 @@ def test_get_anki_words_stale_cache_warns():
 
 def test_get_anki_words_fresh_cache_no_warning():
     cached = ({"猫"}, False)  # (words, is_stale=False)
-    with patch.object(_anki, "anki_fetch_words", return_value=None):
-        with patch.object(_anki, "anki_load_cache", return_value=cached):
+    with patch.object(_anki, "_fetch_words", return_value=None):
+        with patch.object(_anki, "_load_cache", return_value=cached):
             words, warnings = get_anki_words(_FIELDS, stale=604800)
     assert "猫" in words
     assert warnings == []
@@ -397,25 +397,12 @@ def test_is_nix_managed_nix_store_symlink(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_kanji_load_cache_missing(tmp_path):
-    with patch.object(_kanji, "KANJI_CACHE_FILE", tmp_path / "k.json"):
-        assert kanji_load_cache() == {}
-
-
-def test_kanji_cache_roundtrip(tmp_path):
-    cache_path = tmp_path / "k.json"
-    data = {"猫": {"meanings": ["cat"], "grade": 8}}
-    with patch.object(_kanji, "KANJI_CACHE_FILE", cache_path):
-        kanji_save_cache(data)
-        assert kanji_load_cache() == data
-
-
 def test_lookup_kanji_chars_uses_cache(tmp_path):
     cached = {"猫": {"meanings": ["cat"]}}
     cache_path = tmp_path / "k.json"
     cache_path.write_text(_json.dumps(cached))
     with patch.object(_kanji, "KANJI_CACHE_FILE", cache_path):
-        with patch.object(_kanji, "lookup_kanji_data") as mock_fetch:
+        with patch.object(_kanji, "_fetch_one") as mock_fetch:
             result = lookup_kanji_chars(["猫"])
     mock_fetch.assert_not_called()
     assert result["猫"] == {"meanings": ["cat"]}
@@ -425,7 +412,7 @@ def test_lookup_kanji_chars_fetches_missing(tmp_path):
     cache_path = tmp_path / "k.json"
     with patch.object(_kanji, "KANJI_CACHE_FILE", cache_path):
         with patch.object(
-            _kanji, "lookup_kanji_data",
+            _kanji, "_fetch_one",
             return_value={"meanings": ["dog"]},
         ):
             result = lookup_kanji_chars(["犬"])

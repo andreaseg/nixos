@@ -12,7 +12,7 @@ WANIKANI_API = "https://api.wanikani.com/v2"
 WK_CACHE_FILE = Path.home() / ".cache" / "jisho" / "wanikani.json"
 
 
-def get_wanikani_token() -> str | None:
+def _get_token() -> str | None:
     token = os.environ.get("WANIKANI_API_TOKEN")
     if token:
         return token.strip()
@@ -21,7 +21,7 @@ def get_wanikani_token() -> str | None:
     return None
 
 
-def wk_fetch_pages(url: str, token: str) -> list[dict]:
+def _fetch_pages(url: str, token: str) -> list[dict]:
     items: list[dict] = []
     next_url: str | None = url
     while next_url:
@@ -37,15 +37,14 @@ def wk_fetch_pages(url: str, token: str) -> list[dict]:
     return items
 
 
-def wk_fetch_all(token: str) -> dict | None:
+def _fetch_all(token: str) -> dict | None:
     try:
-        subjects = wk_fetch_pages(
+        subjects = _fetch_pages(
             f"{WANIKANI_API}/subjects?types=vocabulary,kanji", token,
         )
-        assignments = wk_fetch_pages(
+        assignments = _fetch_pages(
             f"{WANIKANI_API}/assignments?burned=true", token,
         )
-        # Burned status lives on assignments, not subjects.
         burned_ids = {a["data"]["subject_id"] for a in assignments}
 
         vocabulary: dict[str, dict] = {}
@@ -87,7 +86,7 @@ def wk_fetch_all(token: str) -> dict | None:
         return None
 
 
-def wk_load_cache(ttl: int) -> tuple[dict, bool] | None:
+def _load_cache(ttl: int) -> tuple[dict, bool] | None:
     """Return (data, is_expired), or None if no cache file exists."""
     if not WK_CACHE_FILE.exists():
         return None
@@ -99,7 +98,7 @@ def wk_load_cache(ttl: int) -> tuple[dict, bool] | None:
         return None
 
 
-def wk_save_cache(data: dict) -> None:
+def _save_cache(data: dict) -> None:
     WK_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     WK_CACHE_FILE.write_text(json.dumps({
         "timestamp": time.time(),
@@ -107,21 +106,28 @@ def wk_save_cache(data: dict) -> None:
     }))
 
 
-def get_wk_subjects(token: str | None, ttl: int) -> dict:
+def get_wk_subjects(ttl: int) -> tuple[dict, list[str]]:
+    """Return (subjects, warnings). Reads token and manages cache internally."""
     empty = {"vocabulary": {}, "kanji": {}}
+    token = _get_token()
 
     if not token:
-        result = wk_load_cache(ttl)
-        return result[0] if result else empty
+        result = _load_cache(ttl)
+        warning = (
+            "WaniKani is enabled but no token is set —"
+            " set WANIKANI_API_TOKEN or write your token to"
+            " ~/.config/wanikani/token."
+        )
+        return (result[0] if result else empty), [warning]
 
-    cached = wk_load_cache(ttl)
+    cached = _load_cache(ttl)
 
     if cached and not cached[1]:
-        return cached[0]
+        return cached[0], []
 
-    fresh = wk_fetch_all(token)
+    fresh = _fetch_all(token)
     if fresh is not None:
-        wk_save_cache(fresh)
-        return fresh
+        _save_cache(fresh)
+        return fresh, []
 
-    return cached[0] if cached else empty
+    return (cached[0] if cached else empty), []

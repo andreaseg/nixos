@@ -7,7 +7,7 @@ import requests
 from rich.console import Console
 
 from .config import load_config
-from .api.wanikani import get_wanikani_token, get_wk_subjects
+from .api.wanikani import get_wk_subjects
 from .api.anki import get_anki_words
 from .api.jisho import lookup
 from .formatters import Formatter, RichFormatter, CompactFormatter, JsonFormatter
@@ -93,14 +93,8 @@ def main() -> None:
     warnings: list[str] = []
 
     if config.wanikani_enabled:
-        token = get_wanikani_token()
-        if not token:
-            warnings.append(
-                "WaniKani is enabled but no token is set —"
-                " set WANIKANI_API_TOKEN or write your token to"
-                " ~/.config/wanikani/token."
-            )
-        wk_subjects = get_wk_subjects(token, config.cache.wk_ttl)
+        wk_subjects, wk_warnings = get_wk_subjects(config.cache.wk_ttl)
+        warnings.extend(wk_warnings)
     else:
         wk_subjects = {"vocabulary": {}, "kanji": {}}
 

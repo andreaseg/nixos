@@ -8,7 +8,7 @@ ANKI_CONNECT = "http://localhost:8765"
 ANKI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "anki_words.json"
 
 
-def anki_request(action: str, **params) -> object:
+def _request(action: str, **params) -> object:
     payload = {"action": action, "version": 6, "params": params}
     resp = requests.post(ANKI_CONNECT, json=payload, timeout=3)
     resp.raise_for_status()
@@ -18,16 +18,14 @@ def anki_request(action: str, **params) -> object:
     return result["result"]
 
 
-def anki_fetch_words(fields: dict[str, str]) -> set[str] | None:
+def _fetch_words(fields: dict[str, str]) -> set[str] | None:
     try:
         words: set[str] = set()
         for note_type, field_name in fields.items():
-            note_ids = anki_request(
-                "findNotes", query=f'note:"{note_type}"'
-            )
+            note_ids = _request("findNotes", query=f'note:"{note_type}"')
             if not note_ids:
                 continue
-            notes = anki_request("notesInfo", notes=list(note_ids))
+            notes = _request("notesInfo", notes=list(note_ids))
             for note in notes:
                 value = (
                     note["fields"]
@@ -42,7 +40,7 @@ def anki_fetch_words(fields: dict[str, str]) -> set[str] | None:
         return None
 
 
-def anki_load_cache(stale: int) -> tuple[set[str], bool] | None:
+def _load_cache(stale: int) -> tuple[set[str], bool] | None:
     """Return (words, is_stale) or None if no cache file."""
     if not ANKI_CACHE_FILE.exists():
         return None
@@ -54,7 +52,7 @@ def anki_load_cache(stale: int) -> tuple[set[str], bool] | None:
         return None
 
 
-def anki_save_cache(words: set[str]) -> None:
+def _save_cache(words: set[str]) -> None:
     ANKI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     ANKI_CACHE_FILE.write_text(json.dumps({
         "timestamp": time.time(),
@@ -67,13 +65,13 @@ def get_anki_words(
     stale: int,
 ) -> tuple[set[str], list[str]]:
     """Return (words, warnings)."""
-    live = anki_fetch_words(fields)
+    live = _fetch_words(fields)
     if live is not None:
-        anki_save_cache(live)
+        _save_cache(live)
         return live, []
     if not fields:
         return set(), []
-    cached = anki_load_cache(stale)
+    cached = _load_cache(stale)
     if cached is None:
         return set(), [
             "Anki is not running and no cache exists —"

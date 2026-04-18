@@ -8,7 +8,7 @@ KANJIAPI = "https://kanjiapi.dev/v1/kanji"
 KANJI_CACHE_FILE = Path.home() / ".cache" / "jisho" / "kanji.json"
 
 
-def lookup_kanji_data(kanji: str) -> dict | None:
+def _fetch_one(kanji: str) -> dict | None:
     resp = requests.get(f"{KANJIAPI}/{kanji}", timeout=10)
     if resp.status_code == 404:
         return None
@@ -16,7 +16,7 @@ def lookup_kanji_data(kanji: str) -> dict | None:
     return resp.json()
 
 
-def kanji_load_cache() -> dict[str, dict]:
+def _load_cache() -> dict[str, dict]:
     """Persistent char→data map. No TTL: KANJIDIC2 data is static."""
     if not KANJI_CACHE_FILE.exists():
         return {}
@@ -26,20 +26,20 @@ def kanji_load_cache() -> dict[str, dict]:
         return {}
 
 
-def kanji_save_cache(data: dict[str, dict]) -> None:
+def _save_cache(data: dict[str, dict]) -> None:
     KANJI_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
     KANJI_CACHE_FILE.write_text(json.dumps(data, ensure_ascii=False))
 
 
 def lookup_kanji_chars(chars: list[str]) -> dict[str, dict | None]:
     """Return kanjiapi data for each char, parallel + cached."""
-    cache = kanji_load_cache()
+    cache = _load_cache()
     to_fetch = [c for c in chars if c not in cache]
 
     if to_fetch:
         def _fetch(char: str) -> tuple[str, dict | None]:
             try:
-                return char, lookup_kanji_data(char)
+                return char, _fetch_one(char)
             except requests.RequestException:
                 return char, None
 
@@ -48,7 +48,7 @@ def lookup_kanji_chars(chars: list[str]) -> dict[str, dict | None]:
 
         updates = {c: d for c, d in fetched.items() if d is not None}
         if updates:
-            kanji_save_cache({**cache, **updates})
+            _save_cache({**cache, **updates})
         cache.update(fetched)
 
     return {c: cache.get(c) for c in chars}
