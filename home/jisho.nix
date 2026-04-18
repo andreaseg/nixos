@@ -78,13 +78,20 @@
             ))
 
 
+        def is_exact_match(entry, query):
+            for j in entry.get("japanese", []):
+                if j.get("word") == query or j.get("reading") == query:
+                    return True
+            return False
+
+
         def main():
             if len(sys.argv) < 2:
                 print("Usage: jisho <query>")
                 sys.exit(1)
 
             query = " ".join(sys.argv[1:])
-            console = Console()
+            console = Console(force_terminal=True)
 
             try:
                 results = search(query)
@@ -96,7 +103,10 @@
                 console.print(f"[yellow]No results for '{query}'[/yellow]")
                 sys.exit(0)
 
-            for entry in results[:5]:
+            exact = [e for e in results if is_exact_match(e, query)]
+            to_show = exact if exact else results[:5]
+
+            for entry in to_show:
                 render_entry(entry, console)
                 console.print()
 
