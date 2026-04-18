@@ -93,7 +93,7 @@
         "mako"
         "nm-applet --indicator"
         "eww open clock"
-        "fcitx5 -d --disable=notificationitem"
+        "fcitx5 -d"
       ];
 
       # Keybindings
@@ -169,13 +169,8 @@
         modules-left = [ "hyprland/workspaces" ];
         modules-center = [ "hyprland/window" ];
         # network is intentionally omitted — handled by nm-applet in tray
-        modules-right = [ "custom/ime" "pulseaudio" "battery" "tray" "clock"];
-
-        "custom/ime" = {
-          exec = "fcitx5-remote | awk '{print ($1==2) ? \"あ\" : \"A\"}'";
-          interval = 1;
-          format = "{}";
-        };
+        # IME state is shown via the fcitx5 tray icon
+        modules-right = [ "pulseaudio" "battery" "tray" "clock"];
 
         clock = {
           format = "{:%H:%M}";
