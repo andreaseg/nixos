@@ -39,8 +39,8 @@ def main():
             "role": "user",
             "content": (
                 f"Here is my recent bash history:\n\n{history_text}\n\n"
-                "Based on what I actually use, give me one specific tip to use "
-                "my terminal more efficiently. Two sentences max."
+                "Based on what I actually use, give me one specific tip "
+                "to use my terminal more efficiently. Two sentences max."
             ),
         }],
     }
