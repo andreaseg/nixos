@@ -5,7 +5,7 @@
     ./hyprland.nix
     ./eww.nix
     ./shell.nix
-    ./jisho.nix
+    ./jisho
   ];
 
   home.username = "a";

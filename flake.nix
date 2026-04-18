@@ -28,8 +28,8 @@
         ]))
       ];
     } ''
-      cp ${./home/jisho.py} ./jisho.py
-      cp ${./home/test_jisho.py} ./test_jisho.py
+      cp ${./home/jisho/jisho.py} ./jisho.py
+      cp ${./home/jisho/test_jisho.py} ./test_jisho.py
       python -m pytest ./test_jisho.py -v
       touch $out
     '';
