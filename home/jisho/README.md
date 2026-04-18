@@ -138,6 +138,9 @@ All keys are optional — omitted keys use their defaults.
   "cache": {
     "wkTtl": 604800,
     "ankiStaleTtl": 604800
+  },
+  "wanikani": {
+    "enable": false
   }
 }
 ```

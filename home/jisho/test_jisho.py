@@ -359,9 +359,6 @@ def test_default_config_dict_roundtrips():
     # as the no-file fallback.
     import json as _json
     raw = _json.loads(_json.dumps(jisho.default_config_dict()))
-    cfg = jisho.load_config.__wrapped__(raw) if hasattr(
-        jisho.load_config, "__wrapped__"
-    ) else None
     # At minimum, the dict must be valid JSON and parse without error.
     anki = raw.get("anki", {})
     parsed = jisho.Config(

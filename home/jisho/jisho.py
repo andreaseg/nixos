@@ -631,7 +631,13 @@ def lookup(
             raw, wk, in_anki=entry_in_anki,
         ))
 
-    kanji_chars = extract_kanji(query)
+    # Fall back to the first result's word when the query has no kanji
+    # (e.g. searching by reading ねこ or meaning cat) so the kanji
+    # breakdown for the matched word is still shown.
+    first_word = (
+        pool[0].get("japanese", [{}])[0].get("word", "") if pool else ""
+    )
+    kanji_chars = extract_kanji(query) or extract_kanji(first_word)
     wk_kanji = {
         k: wk_subjects["kanji"][k]
         for k in kanji_chars
@@ -909,7 +915,7 @@ class CompactFormatter:
         if entry.jlpt:
             jlpt_str = entry.jlpt[0].replace("jlpt-", "").upper()
             line.append(f"  {jlpt_str}", style=c.badge_jlpt)
-        self.console.print(line)
+        self.console.print(line, no_wrap=True, overflow="ellipsis")
 
     def _render_kanji(self, entry: KanjiEntry) -> None:
         c = self.colors
@@ -935,7 +941,7 @@ class CompactFormatter:
             line.append("  ∅J", style=c.badge_danger)
         if entry.jlpt is not None:
             line.append(f"  N{entry.jlpt}", style=c.badge_jlpt)
-        self.console.print(line)
+        self.console.print(line, no_wrap=True, overflow="ellipsis")
 
 
 class JsonFormatter:
