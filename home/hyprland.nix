@@ -93,7 +93,7 @@
         "mako"
         "nm-applet --indicator"
         "eww open clock"
-        "fcitx5 -d"
+        "fcitx5 -d --disable=tray"
       ];
 
       # Keybindings
@@ -197,7 +197,6 @@
 
         tray = {
           spacing = 10;
-          ignored-items = [ "fcitx" ];
         };
       };
     };
