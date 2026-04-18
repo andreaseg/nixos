@@ -34,23 +34,14 @@ ANKI_VOCAB_FIELDS: dict[str, str] = {
 
 
 @dataclass
-class Sense:
-    parts_of_speech: list[str]
-    definitions: list[str]
-    info: list[str]
-
-
-@dataclass
 class VocabEntry:
     word: str
     reading: str
     is_common: bool
     jlpt: list[str]
-    senses: list[Sense]
+    meanings: list[str]
     wk_level: int | None = None
-    wk_meanings: list[str] | None = None
-    wk_readings: list[str] | None = None
-    burned: bool = False
+    wk_burned: bool = False
     in_anki: bool = False
 
 
@@ -62,12 +53,12 @@ class KanjiEntry:
     kun_readings: list[str]
     is_jouyou: bool
     wk_level: int | None = None
-    burned: bool = False
+    wk_burned: bool = False
     in_anki: bool = False
 
     @property
     def unknown(self) -> bool:
-        return not self.in_anki and not self.burned
+        return not self.in_anki and not self.wk_burned
 
 
 @dataclass
@@ -320,33 +311,31 @@ def parse_vocab_entry(
     reading = japanese[0].get("reading", "")
 
     if wk_subject:
+        wk_readings = wk_subject["readings"]
+        if wk_readings:
+            reading = wk_readings[0]
         return VocabEntry(
             word=word,
             reading=reading,
             is_common=raw.get("is_common", False),
             jlpt=raw.get("jlpt", []),
-            senses=[],
+            meanings=wk_subject["meanings"],
             wk_level=wk_subject["level"],
-            wk_meanings=wk_subject["meanings"],
-            wk_readings=wk_subject["readings"],
-            burned=wk_subject["burned"],
+            wk_burned=wk_subject["burned"],
             in_anki=in_anki,
         )
 
-    senses = [
-        Sense(
-            parts_of_speech=s.get("parts_of_speech", []),
-            definitions=s.get("english_definitions", []),
-            info=s.get("info", []),
-        )
+    all_defs = [
+        d
         for s in raw.get("senses", [])
+        for d in s.get("english_definitions", [])
     ]
     return VocabEntry(
         word=word,
         reading=reading,
         is_common=raw.get("is_common", False),
         jlpt=raw.get("jlpt", []),
-        senses=senses,
+        meanings=all_defs,
         in_anki=in_anki,
     )
 
@@ -369,7 +358,7 @@ def parse_kanji_entry(
             kun_readings=wk_subject["kun_readings"],
             is_jouyou=is_jouyou,
             wk_level=wk_subject["level"],
-            burned=wk_subject["burned"],
+            wk_burned=wk_subject["burned"],
             in_anki=in_anki,
         )
 
@@ -504,7 +493,7 @@ class RichFormatter:
             badges.append("  ")
         if entry.wk_level is not None:
             wk_badge = f"⬡ WaniKani L{entry.wk_level}"
-            if entry.burned:
+            if entry.wk_burned:
                 wk_badge += " 🔥"
             badges.append(wk_badge, style="bold magenta")
             badges.append("  ")
@@ -517,22 +506,10 @@ class RichFormatter:
             badges.append(f"● {jlpt_str}", style="yellow")
 
         body = Text()
-        if entry.wk_meanings is not None:
-            body.append("  Meanings: ", style="italic dim")
-            body.append(
-                ", ".join(entry.wk_meanings) + "\n", style="white"
-            )
-            if entry.wk_readings:
-                body.append("  Readings: ", style="italic dim")
-                body.append(
-                    ", ".join(entry.wk_readings) + "\n", style="white"
-                )
-        else:
-            all_defs = [d for s in entry.senses for d in s.definitions]
-            body.append("  Readings: ", style="italic dim")
-            body.append(entry.reading + "\n", style="white")
-            body.append("  Meanings: ", style="italic dim")
-            body.append(", ".join(all_defs) + "\n", style="white")
+        body.append("  Readings: ", style="italic dim")
+        body.append(entry.reading + "\n", style="white")
+        body.append("  Meanings: ", style="italic dim")
+        body.append(", ".join(entry.meanings) + "\n", style="white")
 
         border = "green" if entry.in_anki else (
             "magenta" if entry.wk_level is not None else "blue"
@@ -555,7 +532,7 @@ class RichFormatter:
             badges.append("  ")
         if entry.wk_level is not None:
             wk_badge = f"⬡ WaniKani L{entry.wk_level}"
-            if entry.burned:
+            if entry.wk_burned:
                 wk_badge += " 🔥"
             badges.append(wk_badge, style="bold magenta")
         else:
