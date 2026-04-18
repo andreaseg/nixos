@@ -6,14 +6,17 @@ import urllib.error
 from pathlib import Path
 
 HISTORY_FILE = Path.home() / ".bash_history"
+TOKEN_FILE = Path.home() / ".config" / "anthropic" / "token"
 MODEL = "claude-haiku-4-5"
 MAX_COMMANDS = 300
 
 
 def main():
     api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key and TOKEN_FILE.exists():
+        api_key = TOKEN_FILE.read_text().strip()
     if not api_key:
-        print("Error: ANTHROPIC_API_KEY not set", file=sys.stderr)
+        print("Error: no API key found", file=sys.stderr)
         sys.exit(1)
 
     if not HISTORY_FILE.exists():
