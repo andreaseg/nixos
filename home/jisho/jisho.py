@@ -851,13 +851,19 @@ class CompactFormatter:
         return widths[int(len(widths) * 0.8)]
 
     def output(self, result: LookupResult) -> None:
-        # Pre-compute column widths so entries align without one long
-        # outlier inflating the padding for every other line.
+        kanji = (
+            result.kanji if self.verbose
+            else [k for k in result.kanji if k.unknown]
+        )
+        # Pre-compute shared column widths across vocab and kanji so all
+        # lines align at the same meaning column.
         word_w = self._col_width(
             [e.word or e.reading for e in result.vocabulary]
+            + [e.character for e in kanji]
         )
         read_w = self._col_width(
             [e.reading for e in result.vocabulary if e.word]
+            + [", ".join(e.on_readings + e.kun_readings) for e in kanji]
         )
         for entry in result.vocabulary:
             self._render_vocab(entry, word_w, read_w)
@@ -869,14 +875,10 @@ class CompactFormatter:
                 " — use --limit to show more[/dim]"
             )
 
-        kanji = (
-            result.kanji if self.verbose
-            else [k for k in result.kanji if k.unknown]
-        )
         if kanji:
             self.console.print("[dim]── Kanji ──[/dim]")
             for entry in kanji:
-                self._render_kanji(entry)
+                self._render_kanji(entry, word_w, read_w)
 
     def _render_vocab(
         self,
@@ -917,16 +919,27 @@ class CompactFormatter:
             line.append(f"  {jlpt_str}", style=c.badge_jlpt)
         self.console.print(line, no_wrap=True, overflow="ellipsis")
 
-    def _render_kanji(self, entry: KanjiEntry) -> None:
+    def _render_kanji(
+        self,
+        entry: KanjiEntry,
+        word_w: int = 0,
+        read_w: int = 0,
+    ) -> None:
         c = self.colors
         line = Text()
+        w = cell_len(entry.character)
         line.append(entry.character, style=c.title)
         readings = ", ".join(entry.on_readings + entry.kun_readings)
         if readings:
-            line.append(f" {readings}", style=c.text_reading)
+            line.append(" " * max(1, word_w - w + 1))
+            r = cell_len(readings)
+            line.append(readings, style=c.text_reading)
+            line.append(" " * max(1, read_w - r + 1))
+        else:
+            line.append(" " * max(1, word_w + read_w + 2 - w))
         if entry.meanings:
             line.append(
-                f" {', '.join(entry.meanings)}", style=c.text_value
+                ", ".join(entry.meanings), style=c.text_value
             )
         if entry.in_anki:
             line.append("  A", style=c.badge_anki)
