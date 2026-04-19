@@ -1,5 +1,24 @@
 { config, pkgs, ... }:
 
+let
+  sddmTheme = pkgs.where-is-my-sddm-theme.override {
+    themeConfig.General = {
+      backgroundFill        = "#1F1F28";
+      font                  = "Fira Code";
+      helpFont              = "Fira Code";
+      basicTextColor        = "#DCD7BA";
+      passwordTextColor     = "#DCD7BA";
+      passwordCursorColor   = "#E58950";
+      passwordInputBackground = "#2A2A37";
+      passwordInputRadius   = "10";
+      passwordInputWidth    = "0.3";
+      passwordFontSize      = "24";
+      showSessionsByDefault = "false";
+      showUsersByDefault    = "false";
+    };
+  };
+in
+
 {
   imports = [
     ./hardware-configuration.nix
@@ -43,7 +62,8 @@
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
+  services.displayManager.sddm.theme = "where_is_my_sddm_theme";
+  services.displayManager.sddm.extraPackages = with pkgs.qt6; [ qt5compat qtsvg ];
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
@@ -67,8 +87,9 @@
     pulse.enable = true;
   };
 
-  # Auto-unlock KWallet on SDDM login (prevents NetworkManager prompting for WiFi password)
-  security.pam.services.sddm.enableKwallet = true;
+  # Auto-unlock GNOME Keyring on SDDM login (allows NetworkManager to access WiFi credentials)
+  security.pam.services.sddm.enableGnomeKeyring = true;
+  services.gnome.gnome-keyring.enable = true;
 
   # Services
   services.printing.enable = true;
@@ -102,6 +123,7 @@
   environment.systemPackages = with pkgs; [
     htop
     claude-code
+    sddmTheme
   ];
 
   system.stateVersion = "25.11";

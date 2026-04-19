@@ -12,7 +12,6 @@
   home.homeDirectory = "/home/a";
 
   home.packages = with pkgs; [
-    kdePackages.kate
     google-chrome
     mpv
     pavucontrol
@@ -22,7 +21,16 @@
     gnumake
     bat
     hyprpicker
+    xfce.thunar
+    kanagawa-gtk-theme
   ];
+
+  home.pointerCursor = {
+    name = "Adwaita";
+    package = pkgs.adwaita-icon-theme;
+    size = 24;
+    gtk.enable = true;
+  };
 
   home.sessionVariables = {
     TERMINAL = "kitty";
