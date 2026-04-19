@@ -42,7 +42,11 @@
 
       font_family = "Hack";
       font_size   = "11.0";
-      # CJK fallback: route Japanese/CJK codepoints to Sarasa Mono J
+      # Route CJK codepoints to Sarasa Mono J, which combines Iosevka
+      # (Latin) with Source Han Sans JP (CJK) using Japanese glyph forms.
+      # Ranges: CJK symbols/hiragana/katakana/unified ideographs (3000-9FFF),
+      # CJK compatibility ideographs (F900-FAFF), halfwidth/fullwidth forms
+      # (FF00-FFEF), CJK unified ideographs extension B (20000-2A6DF).
       symbol_map = "U+3000-U+9FFF,U+F900-U+FAFF,U+FF00-U+FFEF,U+20000-U+2A6DF Sarasa Mono J";
 
       # Black
