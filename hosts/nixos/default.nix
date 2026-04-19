@@ -67,6 +67,9 @@
     pulse.enable = true;
   };
 
+  # Auto-unlock KWallet on SDDM login (prevents NetworkManager prompting for WiFi password)
+  security.pam.services.sddm.enableKwallet = true;
+
   # Services
   services.printing.enable = true;
   services.flatpak.enable = true;
