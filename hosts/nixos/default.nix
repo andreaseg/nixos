@@ -88,6 +88,7 @@
 
   # Fonts
   fonts.packages = with pkgs; [
+    noto-fonts
     sarasa-gothic
     (stdenv.mkDerivation {
       pname = "source-han-mono-jp";
