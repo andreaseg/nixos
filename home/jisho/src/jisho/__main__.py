@@ -69,25 +69,28 @@ def main() -> None:
             "examples:\n"
             "  jisho 猫\n"
             "  jisho 日本語 --format compact\n"
+            "  jisho 日本語 -f c\n"
             "  jisho 勉強 --verbose --limit 10\n"
+            "  jisho 勉強 -v -l 10\n"
             "  jisho init-config"
         ),
     )
     parser.add_argument("query", nargs="+", help="Word to look up")
     parser.add_argument(
-        "--format", default=config.format,
-        choices=["rich", "compact", "json"],
-        help="Output format (default: rich)",
+        "-f", "--format", default=config.format,
+        choices=["rich", "r", "compact", "c", "json", "j"],
+        help="Output format: rich/r, compact/c, json/j (default: rich)",
     )
     parser.add_argument(
-        "--verbose", action="store_true",
+        "-v", "--verbose", action="store_true",
         help="Show all kanji, not just unknown ones",
     )
     parser.add_argument(
-        "--limit", type=_limit_type, default=5, metavar="N",
+        "-l", "--limit", type=_limit_type, default=5, metavar="N",
         help="Max vocabulary results (default: 5, 'none' for all)",
     )
     args = parser.parse_args()
+    args.format = {"r": "rich", "c": "compact", "j": "json"}.get(args.format, args.format)
 
     query = " ".join(args.query)
     warnings: list[str] = []
