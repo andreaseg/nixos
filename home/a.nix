@@ -110,7 +110,7 @@
         <test name="family">
           <string>Source Han Mono</string>
         </test>
-        <edit name="spacing" mode="assign">
+        <edit name="spacing" mode="assign" binding="strong">
           <int>100</int>
         </edit>
       </match>
