@@ -7,7 +7,7 @@
       vim = "nvim";
       icat = "kitty +kitten icat";
       cat = "bat --paging=never";
-      screenshot = "mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png";
+      screenshot = "mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).jpg";
     };
     initExtra = ''
       if [[ "$(whoami)" == "a" && "$(hostname)" == "nixos" ]]; then

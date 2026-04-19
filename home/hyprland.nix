@@ -6,6 +6,7 @@
     slurp                 # Region selector
     wl-clipboard          # Clipboard utilities
     mako                  # Notification daemon
+    libnotify             # notify-send for desktop notifications
     networkmanagerapplet  # WiFi/network tray applet
     hyprpaper             # Wallpaper daemon
   ];
@@ -156,7 +157,7 @@
         # Screenshot
         ", Print, exec, grim -g \"$(slurp)\" - | wl-copy"
         "SHIFT, Print, exec, grim - | wl-copy"
-        "$mod SHIFT, S, exec, mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png"
+        "$mod SHIFT, S, exec, f=~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).jpg; mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" \"$f\" && notify-send Screenshot \"$f\""
       ];
 
       # Mouse bindings
