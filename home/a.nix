@@ -17,7 +17,7 @@
     mpv
     pavucontrol
     nerd-fonts.symbols-only
-    nerd-fonts.victor-mono
+    source-han-mono
     python3
     glow
     gnumake
@@ -41,11 +41,8 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family      = "VictorMono Nerd Font SemiBold";
-      italic_font      = "VictorMono Nerd Font SemiBold Italic";
-      bold_font        = "VictorMono Nerd Font Bold";
-      bold_italic_font = "VictorMono Nerd Font Bold Italic";
-      font_size        = "11.0";
+      font_family = "Source Han Mono JP";
+      font_size   = "11.0";
 
       # Black
       color0  = "#090618";
