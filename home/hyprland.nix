@@ -110,6 +110,11 @@
         "$mod, J, togglesplit"
         "$mod, F, fullscreen"
 
+        # Split ratios
+        "$mod, U, splitratio, 0.75"
+        "$mod, I, splitratio, 0.66"
+        "$mod, O, splitratio, 0.5"
+
         # Move focus
         "$mod, left, movefocus, l"
         "$mod, right, movefocus, r"
