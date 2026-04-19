@@ -50,7 +50,7 @@
       cursor_text_color     = "#1F1F28";
 
       font_family = "Fira Code";
-      font_size   = "11.0";
+      font_size   = "13.0";
 
       # Black
       color0  = "#090618";
