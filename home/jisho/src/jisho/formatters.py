@@ -51,11 +51,12 @@ class RichFormatter:
             else [k for k in result.kanji if k.unknown]
         )
         if kanji:
-            title = "Kanji" if self.verbose else "Unknown Kanji"
-            self.console.print(
-                Rule(f"[dim]{title}[/dim]", style="dim")
-            )
-            self.console.print()
+            if not self.kanji_only:
+                title = "Kanji" if self.verbose else "Unknown Kanji"
+                self.console.print(
+                    Rule(f"[dim]{title}[/dim]", style="dim")
+                )
+                self.console.print()
             for entry in kanji:
                 self._render_kanji(entry)
                 self.console.print()
