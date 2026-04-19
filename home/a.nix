@@ -99,5 +99,23 @@
     };
   };
 
+  # Tell fontconfig that Source Han Mono is monospace (spacing=100).
+  # Fontconfig's glyph-width scan classifies CJK dual-width fonts as
+  # non-mono; this override ensures Kitty lists and loads the font.
+  xdg.configFile."fontconfig/conf.d/50-source-han-mono.conf".text = ''
+    <?xml version="1.0"?>
+    <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+    <fontconfig>
+      <match target="font">
+        <test name="family">
+          <string>Source Han Mono</string>
+        </test>
+        <edit name="spacing" mode="assign">
+          <int>100</int>
+        </edit>
+      </match>
+    </fontconfig>
+  '';
+
   home.stateVersion = "25.11";
 }
