@@ -156,6 +156,7 @@
         # Screenshot
         ", Print, exec, grim -g \"$(slurp)\" - | wl-copy"
         "SHIFT, Print, exec, grim - | wl-copy"
+        "$mod SHIFT, S, exec, mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png"
       ];
 
       # Mouse bindings
