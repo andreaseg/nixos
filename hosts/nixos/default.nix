@@ -3,9 +3,7 @@
 let
   sddmTheme = pkgs.where-is-my-sddm-theme.override {
     themeConfig.General = {
-      background            = "/etc/sddm/wallpaper.jpg";
-      backgroundFillMode    = "aspect";
-      blurRadius            = "32";
+      backgroundFill        = "#1F1F28";
       font                  = "Fira Code";
       helpFont              = "Fira Code";
       basicTextColor        = "#DCD7BA";
@@ -92,11 +90,6 @@ in
   # Auto-unlock GNOME Keyring on SDDM login (allows NetworkManager to access WiFi credentials)
   security.pam.services.sddm.enableGnomeKeyring = true;
   services.gnome.gnome-keyring.enable = true;
-
-  # Point SDDM theme background to the user's wallpaper at runtime
-  systemd.tmpfiles.rules = [
-    "L+ /etc/sddm/wallpaper.jpg - - - - /home/a/Wallpapers/wallhaven-d8e373.jpg"
-  ];
 
   # Services
   services.printing.enable = true;
