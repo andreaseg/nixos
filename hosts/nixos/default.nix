@@ -47,6 +47,7 @@ let
     };
   }).overrideAttrs (old: {
     installPhase = old.installPhase + ''
+      chmod u+w $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds
       ln -s /etc/sddm/wallpaper.jpg \
         $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds/wallpaper.jpg
     '';
