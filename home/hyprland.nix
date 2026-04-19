@@ -111,9 +111,9 @@
         "$mod, F, fullscreen"
 
         # Split ratios
-        "$mod, U, splitratio, exact 0.5"
-        "$mod, I, splitratio, exact 0.66"
-        "$mod, O, splitratio, exact 1.0"
+        "$mod, U, splitratio, exact 0.66"
+        "$mod, I, splitratio, exact 1.0"
+        "$mod, O, splitratio, exact 1.33"
 
         # Move focus
         "$mod, left, movefocus, l"
