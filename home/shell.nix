@@ -9,6 +9,10 @@
       cat = "bat --paging=never";
     };
     initExtra = ''
+      if [[ "$(whoami)" == "a" && "$(hostname)" == "nixos" ]]; then
+        PS1='\[\e[0m\]❯ '
+      fi
+
       nrs() {
         if ! git -C ~/nixos-config diff --quiet || ! git -C ~/nixos-config diff --cached --quiet; then
           echo "Uncommitted changes in ~/nixos-config — aborting rebuild."
