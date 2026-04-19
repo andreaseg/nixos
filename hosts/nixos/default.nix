@@ -98,7 +98,7 @@ in
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
   services.displayManager.sddm.theme = "sddm-astronaut-theme";
-  services.displayManager.sddm.extraPackages = with pkgs.kdePackages; [ qtmultimedia ];
+  services.displayManager.sddm.extraPackages = with pkgs.kdePackages; [ qtmultimedia qtsvg qtvirtualkeyboard ];
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
