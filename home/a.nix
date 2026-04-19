@@ -18,6 +18,7 @@
     nerd-fonts.symbols-only # Icon glyphs for terminal/waybar
     python3                # Python runtime
     mdcat                  # Markdown renderer with kitty image protocol support
+    file                   # MIME type detection (used by o() shell function)
     gnumake                # Build tool
     bat                    # Better cat with syntax highlighting
     hyprpicker             # Color picker for Wayland
