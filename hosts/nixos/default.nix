@@ -1,5 +1,58 @@
 { config, pkgs, ... }:
 
+let
+  sddmTheme = (pkgs.sddm-astronaut.override {
+    themeConfig = {
+      Background         = "Backgrounds/wallhaven-d8e373.jpg";
+      Font               = "Fira Code";
+      RoundCorners       = "10";
+      HeaderText         = "";
+      DimBackground      = "0.2";
+      CropBackground     = "true";
+      PartialBlur        = "true";
+      Blur               = "1.5";
+      BlurMax            = "48";
+      HaveFormBackground = "false";
+      FormPosition       = "center";
+      HideVirtualKeyboard = "true";
+      # Kanagawa Wave palette
+      FormBackgroundColor              = "#1F1F28";
+      BackgroundColor                  = "#1F1F28";
+      DimBackgroundColor               = "#1F1F28";
+      HeaderTextColor                  = "#DCD7BA";
+      DateTextColor                    = "#DCD7BA";
+      TimeTextColor                    = "#DCD7BA";
+      LoginFieldBackgroundColor        = "#2A2A37";
+      PasswordFieldBackgroundColor     = "#2A2A37";
+      LoginFieldTextColor              = "#DCD7BA";
+      PasswordFieldTextColor           = "#DCD7BA";
+      PlaceholderTextColor             = "#727169";
+      UserIconColor                    = "#5D767D";
+      PasswordIconColor                = "#5D767D";
+      WarningColor                     = "#2A2A37";
+      LoginButtonTextColor             = "#1F1F28";
+      LoginButtonBackgroundColor       = "#5D767D";
+      SystemButtonsIconsColor          = "#DCD7BA";
+      SessionButtonTextColor           = "#DCD7BA";
+      DropdownTextColor                = "#DCD7BA";
+      DropdownBackgroundColor          = "#1F1F28";
+      DropdownSelectedBackgroundColor  = "#2D4F67";
+      HighlightTextColor               = "#DCD7BA";
+      HighlightBackgroundColor         = "#2D4F67";
+      HighlightBorderColor             = "#5D767D";
+      HoverUserIconColor               = "#E58950";
+      HoverPasswordIconColor           = "#E58950";
+      HoverSystemButtonsIconsColor     = "#E58950";
+      HoverSessionButtonTextColor      = "#E58950";
+    };
+  }).overrideAttrs (old: {
+    installPhase = old.installPhase + ''
+      cp ${/home/a/Wallpapers/wallhaven-d8e373.jpg} \
+        $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds/wallhaven-d8e373.jpg
+    '';
+  });
+in
+
 {
   imports = [
     ./hardware-configuration.nix
@@ -43,6 +96,8 @@
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
+  services.displayManager.sddm.theme = "sddm-astronaut-theme";
+  environment.systemPackages = [ sddmTheme ];
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
