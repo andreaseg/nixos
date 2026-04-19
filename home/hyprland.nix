@@ -27,7 +27,9 @@
         "__GLX_VENDOR_LIBRARY_NAME,nvidia"
         "NVD_BACKEND,direct"
         "ELECTRON_OZONE_PLATFORM_HINT,auto"
-        # Fcitx5 input method (GTK_IM_MODULE intentionally omitted — GTK4 uses Wayland input protocol directly)
+        # Fcitx5 input method — GTK_IM_MODULE explicitly cleared because fcitx5 sets it
+        # via profile.d, but GTK4 uses the Wayland input protocol directly
+        "GTK_IM_MODULE,"
         "QT_IM_MODULE,fcitx"
         "XMODIFIERS,@im=fcitx"
         "SDL_IM_MODULE,fcitx"
