@@ -88,7 +88,7 @@
 
   # Fonts
   fonts.packages = with pkgs; [
-    source-han-mono
+    noto-fonts-cjk-sans
   ];
 
   # Packages
