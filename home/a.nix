@@ -120,7 +120,6 @@
 
   xdg.mimeApps = {
     enable = true;
-    force = true;
     defaultApplications = {
       "image/jpeg" = "imv.desktop";
       "image/png"  = "imv.desktop";
