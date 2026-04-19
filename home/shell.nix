@@ -6,7 +6,7 @@
     shellAliases = {
       vim = "nvim";
       icat = "kitty +kitten icat";
-      cat = "bat";
+      cat = "bat --paging=never";
     };
     initExtra = ''
       nrs() {
