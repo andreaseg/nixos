@@ -17,7 +17,6 @@
     mpv
     pavucontrol
     nerd-fonts.symbols-only
-    source-han-mono
     python3
     glow
     gnumake

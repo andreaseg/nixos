@@ -86,6 +86,11 @@
     defaultEditor = true;
   };
 
+  # Fonts
+  fonts.packages = with pkgs; [
+    source-han-mono
+  ];
+
   # Packages
   nixpkgs.config.allowUnfree = true;
 
