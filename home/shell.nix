@@ -10,7 +10,7 @@
     };
     initExtra = ''
       if [[ "$(whoami)" == "a" && "$(hostname)" == "nixos" ]]; then
-        PS1='\[\e[0m\]❯ '
+        PS1='\[\e[38;2;152;187;108m\]❯\[\e[0m\] '
       fi
 
       nrs() {
