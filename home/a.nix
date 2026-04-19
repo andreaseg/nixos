@@ -17,7 +17,7 @@
     pavucontrol            # PipeWire/PulseAudio volume control GUI
     nerd-fonts.symbols-only # Icon glyphs for terminal/waybar
     python3                # Python runtime
-    glow                   # Markdown renderer for the terminal
+    mdcat                  # Markdown renderer with kitty image protocol support
     gnumake                # Build tool
     bat                    # Better cat with syntax highlighting
     hyprpicker             # Color picker for Wayland
