@@ -7,10 +7,11 @@
       vim = "nvim";
       icat = "kitty +kitten icat";
       cat = "bat --paging=never";
+      screenshot = "mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" ~/Pictures/Screenshots/$(date +%Y%m%d_%H%M%S).png";
     };
     initExtra = ''
       if [[ "$(whoami)" == "a" && "$(hostname)" == "nixos" ]]; then
-        PS1='\[\e[38;2;152;187;108m\]❯\[\e[0m\] '
+        PS1='\[\e[38;2;114;113;105m\]\w \[\e[38;2;152;187;108m\]❯\[\e[0m\] '
       fi
 
       nrs() {
