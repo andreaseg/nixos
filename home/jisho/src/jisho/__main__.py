@@ -72,6 +72,8 @@ def main() -> None:
             "  jisho 日本語 -f c\n"
             "  jisho 勉強 --verbose --limit 10\n"
             "  jisho 勉強 -v -l 10\n"
+            "  jisho 日本語 --kanji\n"
+            "  jisho 日本語 -k\n"
             "  jisho init-config"
         ),
     )
@@ -84,6 +86,10 @@ def main() -> None:
     parser.add_argument(
         "-v", "--verbose", action="store_true",
         help="Show all kanji, not just unknown ones",
+    )
+    parser.add_argument(
+        "-k", "--kanji", action="store_true",
+        help="Only print kanji (all kanji, known and unknown)",
     )
     parser.add_argument(
         "-l", "--limit", type=_limit_type, default=5, metavar="N",
@@ -139,14 +145,16 @@ def main() -> None:
             Console(force_terminal=True),
             config.colors,
             config.badges,
-            verbose=args.verbose,
+            verbose=args.verbose or args.kanji,
+            kanji_only=args.kanji,
         )
     else:
         formatter = RichFormatter(
             Console(force_terminal=True),
             config.colors,
             config.badges,
-            verbose=args.verbose,
+            verbose=args.verbose or args.kanji,
+            kanji_only=args.kanji,
         )
 
     formatter.output(result)

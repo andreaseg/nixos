@@ -24,24 +24,27 @@ class RichFormatter:
         colors: Colors,
         badges: Badges,
         verbose: bool = False,
+        kanji_only: bool = False,
     ) -> None:
         self.console = console
         self.colors = colors
         self.badges = badges
         self.verbose = verbose
+        self.kanji_only = kanji_only
 
     def output(self, result: LookupResult) -> None:
-        for entry in result.vocabulary:
-            self._render_vocab(entry)
-            self.console.print()
+        if not self.kanji_only:
+            for entry in result.vocabulary:
+                self._render_vocab(entry)
+                self.console.print()
 
-        if result.more_vocabulary:
-            self.console.print(
-                f"  [dim]… {result.more_vocabulary} more result"
-                f"{'s' if result.more_vocabulary > 1 else ''}"
-                " — use --limit to show more[/dim]"
-            )
-            self.console.print()
+            if result.more_vocabulary:
+                self.console.print(
+                    f"  [dim]… {result.more_vocabulary} more result"
+                    f"{'s' if result.more_vocabulary > 1 else ''}"
+                    " — use --limit to show more[/dim]"
+                )
+                self.console.print()
 
         kanji = (
             result.kanji if self.verbose
@@ -173,11 +176,13 @@ class CompactFormatter:
         colors: Colors,
         badges: Badges,
         verbose: bool = False,
+        kanji_only: bool = False,
     ) -> None:
         self.console = console
         self.colors = colors
         self.badges = badges
         self.verbose = verbose
+        self.kanji_only = kanji_only
 
     def _col_width(self, values: list[str]) -> int:
         """80th-percentile display width — caps outliers without truncating."""
@@ -193,26 +198,29 @@ class CompactFormatter:
         )
         # Pre-compute shared column widths across vocab and kanji so all
         # lines align at the same meaning column.
+        vocab_for_width = [] if self.kanji_only else result.vocabulary
         word_w = self._col_width(
-            [e.word or e.reading for e in result.vocabulary]
+            [e.word or e.reading for e in vocab_for_width]
             + [e.character for e in kanji]
         )
         read_w = self._col_width(
-            [e.reading for e in result.vocabulary if e.word]
+            [e.reading for e in vocab_for_width if e.word]
             + [", ".join(e.on_readings + e.kun_readings) for e in kanji]
         )
-        for entry in result.vocabulary:
-            self._render_vocab(entry, word_w, read_w)
+        if not self.kanji_only:
+            for entry in result.vocabulary:
+                self._render_vocab(entry, word_w, read_w)
 
-        if result.more_vocabulary:
-            self.console.print(
-                f"[dim]… {result.more_vocabulary} more result"
-                f"{'s' if result.more_vocabulary > 1 else ''}"
-                " — use --limit to show more[/dim]"
-            )
+            if result.more_vocabulary:
+                self.console.print(
+                    f"[dim]… {result.more_vocabulary} more result"
+                    f"{'s' if result.more_vocabulary > 1 else ''}"
+                    " — use --limit to show more[/dim]"
+                )
 
         if kanji:
-            self.console.print("[dim]── Kanji ──[/dim]")
+            if not self.kanji_only:
+                self.console.print("[dim]── Kanji ──[/dim]")
             for entry in kanji:
                 self._render_kanji(entry, word_w, read_w)
 
