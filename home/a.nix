@@ -21,6 +21,7 @@
     glow
     gnumake
     bat
+    hyprpicker
   ];
 
   home.sessionVariables = {
