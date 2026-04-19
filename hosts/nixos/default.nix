@@ -3,7 +3,7 @@
 let
   sddmTheme = (pkgs.sddm-astronaut.override {
     themeConfig = {
-      Background         = "Backgrounds/wallhaven-d8e373.jpg";
+      Background         = "Backgrounds/wallpaper.jpg";
       Font               = "Fira Code";
       RoundCorners       = "10";
       HeaderText         = "";
@@ -47,8 +47,8 @@ let
     };
   }).overrideAttrs (old: {
     installPhase = old.installPhase + ''
-      cp ${/home/a/Wallpapers/wallhaven-d8e373.jpg} \
-        $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds/wallhaven-d8e373.jpg
+      ln -s /etc/sddm/wallpaper.jpg \
+        $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds/wallpaper.jpg
     '';
   });
 in
@@ -123,6 +123,11 @@ in
   # Auto-unlock GNOME Keyring on SDDM login (allows NetworkManager to access WiFi credentials)
   security.pam.services.sddm.enableGnomeKeyring = true;
   services.gnome.gnome-keyring.enable = true;
+
+  # Point SDDM theme background to the user's wallpaper at runtime
+  systemd.tmpfiles.rules = [
+    "L+ /etc/sddm/wallpaper.jpg - - - - /home/a/Wallpapers/wallhaven-d8e373.jpg"
+  ];
 
   # Services
   services.printing.enable = true;
