@@ -197,7 +197,7 @@
     };
     style = ''
       * {
-        font-family: "Hack", "Symbols Nerd Font", sans-serif;
+        font-family: "Fira Code", "Symbols Nerd Font", sans-serif;
         font-size: 13px;
       }
 

@@ -40,7 +40,7 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family = "Hack";
+      font_family = "Fira Code";
       font_size   = "11.0";
       # Route CJK codepoints to Sarasa Mono J, which combines Iosevka
       # (Latin) with Source Han Sans JP (CJK) using Japanese glyph forms.

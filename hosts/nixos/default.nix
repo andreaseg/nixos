@@ -90,6 +90,7 @@
   fonts.packages = with pkgs; [
     noto-fonts
     sarasa-gothic
+    fira-code
   ];
 
   # Packages
