@@ -97,7 +97,6 @@ in
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
   services.displayManager.sddm.theme = "sddm-astronaut-theme";
-  environment.systemPackages = [ sddmTheme ];
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
@@ -157,6 +156,7 @@ in
   environment.systemPackages = with pkgs; [
     htop
     claude-code
+    sddmTheme
   ];
 
   system.stateVersion = "25.11";
