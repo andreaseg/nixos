@@ -1,57 +1,24 @@
 { config, pkgs, ... }:
 
 let
-  sddmTheme = (pkgs.sddm-astronaut.override {
-    themeConfig = {
-      Background         = "Backgrounds/wallpaper.jpg";
-      Font               = "Fira Code";
-      RoundCorners       = "10";
-      HeaderText         = "";
-      DimBackground      = "0.2";
-      CropBackground     = "true";
-      PartialBlur        = "true";
-      Blur               = "1.5";
-      BlurMax            = "48";
-      HaveFormBackground = "false";
-      FormPosition       = "center";
-      HideVirtualKeyboard = "true";
-      # Kanagawa Wave palette
-      FormBackgroundColor              = "#1F1F28";
-      BackgroundColor                  = "#1F1F28";
-      DimBackgroundColor               = "#1F1F28";
-      HeaderTextColor                  = "#DCD7BA";
-      DateTextColor                    = "#DCD7BA";
-      TimeTextColor                    = "#DCD7BA";
-      LoginFieldBackgroundColor        = "#2A2A37";
-      PasswordFieldBackgroundColor     = "#2A2A37";
-      LoginFieldTextColor              = "#DCD7BA";
-      PasswordFieldTextColor           = "#DCD7BA";
-      PlaceholderTextColor             = "#727169";
-      UserIconColor                    = "#5D767D";
-      PasswordIconColor                = "#5D767D";
-      WarningColor                     = "#2A2A37";
-      LoginButtonTextColor             = "#1F1F28";
-      LoginButtonBackgroundColor       = "#5D767D";
-      SystemButtonsIconsColor          = "#DCD7BA";
-      SessionButtonTextColor           = "#DCD7BA";
-      DropdownTextColor                = "#DCD7BA";
-      DropdownBackgroundColor          = "#1F1F28";
-      DropdownSelectedBackgroundColor  = "#2D4F67";
-      HighlightTextColor               = "#DCD7BA";
-      HighlightBackgroundColor         = "#2D4F67";
-      HighlightBorderColor             = "#5D767D";
-      HoverUserIconColor               = "#E58950";
-      HoverPasswordIconColor           = "#E58950";
-      HoverSystemButtonsIconsColor     = "#E58950";
-      HoverSessionButtonTextColor      = "#E58950";
+  sddmTheme = pkgs.where-is-my-sddm-theme.override {
+    themeConfig.General = {
+      background            = "/etc/sddm/wallpaper.jpg";
+      backgroundFillMode    = "aspect";
+      blurRadius            = "32";
+      font                  = "Fira Code";
+      helpFont              = "Fira Code";
+      basicTextColor        = "#DCD7BA";
+      passwordTextColor     = "#DCD7BA";
+      passwordCursorColor   = "#E58950";
+      passwordInputBackground = "#2A2A37";
+      passwordInputRadius   = "10";
+      passwordInputWidth    = "0.3";
+      passwordFontSize      = "24";
+      showSessionsByDefault = "false";
+      showUsersByDefault    = "false";
     };
-  }).overrideAttrs (old: {
-    installPhase = old.installPhase + ''
-      chmod u+w $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds
-      ln -s /etc/sddm/wallpaper.jpg \
-        $out/share/sddm/themes/sddm-astronaut-theme/Backgrounds/wallpaper.jpg
-    '';
-  });
+  };
 in
 
 {
@@ -97,8 +64,8 @@ in
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
-  services.displayManager.sddm.theme = "sddm-astronaut-theme";
-  services.displayManager.sddm.extraPackages = with pkgs.kdePackages; [ qtmultimedia qtsvg qtvirtualkeyboard ];
+  services.displayManager.sddm.theme = "where_is_my_sddm_theme";
+  services.displayManager.sddm.extraPackages = with pkgs.qt6; [ qt5compat qtsvg ];
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
