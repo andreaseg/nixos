@@ -90,34 +90,6 @@
   fonts.packages = with pkgs; [
     noto-fonts
     sarasa-gothic
-    (stdenv.mkDerivation {
-      pname = "source-han-mono-jp";
-      version = "1.002";
-      src = source-han-mono;
-      nativeBuildInputs = [ python3Packages.fonttools ];
-      buildPhase = ''
-        python3 -c "
-        from fontTools.ttLib.ttCollection import TTCollection
-
-        faces = {
-          'SourceHanMono-Regular.otf':   30,
-          'SourceHanMono-Italic.otf':    31,
-          'SourceHanMono-Bold.otf':      50,
-          'SourceHanMono-BoldItalic.otf': 51,
-        }
-
-        tc = TTCollection('$src/share/fonts/opentype/source-han-mono/SourceHanMono.ttc')
-        for filename, index in faces.items():
-            font = tc[index]
-            font['post'].isFixedPitch = 1
-            font.save(filename)
-        "
-      '';
-      installPhase = ''
-        mkdir -p $out/share/fonts/opentype/source-han-mono-jp
-        cp *.otf $out/share/fonts/opentype/source-han-mono-jp/
-      '';
-    })
   ];
 
   # Packages

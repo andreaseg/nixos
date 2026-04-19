@@ -40,8 +40,10 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family = "Noto Sans Mono";
+      font_family = "Hack";
       font_size   = "11.0";
+      # CJK fallback: route Japanese/CJK codepoints to Sarasa Mono J
+      symbol_map = "U+3000-U+9FFF,U+F900-U+FAFF,U+FF00-U+FFEF,U+20000-U+2A6DF Sarasa Mono J";
 
       # Black
       color0  = "#090618";
@@ -99,23 +101,5 @@
     };
   };
 
-  # Tell fontconfig that Source Han Mono is monospace (spacing=100).
-  # Fontconfig's glyph-width scan classifies CJK dual-width fonts as
-  # non-mono; this override ensures Kitty lists and loads the font.
-  xdg.configFile."fontconfig/conf.d/50-source-han-mono.conf".text = ''
-    <?xml version="1.0"?>
-    <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
-    <fontconfig>
-      <match target="font">
-        <test name="family">
-          <string>Source Han Mono</string>
-        </test>
-        <edit name="spacing" mode="assign" binding="strong">
-          <int>100</int>
-        </edit>
-      </match>
-    </fontconfig>
-  '';
-
-  home.stateVersion = "25.11";
+home.stateVersion = "25.11";
 }
