@@ -30,6 +30,15 @@
   programs.home-manager.enable = true;
   programs.kitty = {
     enable = true;
+    extraConfig = ''
+      # Route Nerd Font PUA glyphs to Symbols Nerd Font Mono.
+      symbol_map U+E000-U+E0EF,U+E200-U+E2A9,U+E300-U+E3E3,U+E5FA-U+E6B1,U+E700-U+E7C5,U+EA60-U+EBEB,U+ED00-U+EFFF,U+F000-U+F2FF,U+F400-U+F533,U+F0001-U+F1AF0 Symbols Nerd Font Mono
+      # Route CJK codepoints to Sarasa Mono J (Iosevka + Source Han Sans JP).
+      # Ranges: CJK symbols/hiragana/katakana/unified ideographs (3000-9FFF),
+      # CJK compatibility ideographs (F900-FAFF), halfwidth/fullwidth forms
+      # (FF00-FFEF), CJK unified ideographs extension B (20000-2A6DF).
+      symbol_map U+3000-U+9FFF,U+F900-U+FAFF,U+FF00-U+FFEF,U+20000-U+2A6DF Sarasa Mono J
+    '';
     settings = {
       # Kanagawa Wave
       background            = "#1F1F28";
@@ -42,12 +51,6 @@
 
       font_family = "Fira Code";
       font_size   = "11.0";
-      # Route CJK codepoints to Sarasa Mono J, which combines Iosevka
-      # (Latin) with Source Han Sans JP (CJK) using Japanese glyph forms.
-      # Ranges: CJK symbols/hiragana/katakana/unified ideographs (3000-9FFF),
-      # CJK compatibility ideographs (F900-FAFF), halfwidth/fullwidth forms
-      # (FF00-FFEF), CJK unified ideographs extension B (20000-2A6DF).
-      symbol_map = "U+3000-U+9FFF,U+F900-U+FAFF,U+FF00-U+FFEF,U+20000-U+2A6DF Sarasa Mono J";
 
       # Black
       color0  = "#090618";
