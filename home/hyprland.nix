@@ -101,7 +101,7 @@
         "$mod, Return, exec, $terminal"
         "$mod, Q, killactive"
         "$mod, M, exit"
-        "$mod, E, exec, dolphin"
+        "$mod, E, exec, thunar"
         "$mod, V, togglefloating"
         "$mod, D, exec, $menu"
         "$mod, P, pseudo"

@@ -12,7 +12,6 @@
   home.homeDirectory = "/home/a";
 
   home.packages = with pkgs; [
-    kdePackages.kate
     google-chrome
     mpv
     pavucontrol
@@ -22,6 +21,8 @@
     gnumake
     bat
     hyprpicker
+    xfce.thunar
+    kanagawa-gtk-theme
   ];
 
   home.sessionVariables = {

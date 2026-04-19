@@ -43,7 +43,6 @@
   services.xserver.enable = true;
   services.displayManager.sddm.enable = true;
   services.displayManager.sddm.wayland.enable = true;
-  services.desktopManager.plasma6.enable = true;
 
   # NVIDIA
   services.xserver.videoDrivers = [ "nvidia" ];
@@ -67,8 +66,9 @@
     pulse.enable = true;
   };
 
-  # Auto-unlock KWallet on SDDM login (prevents NetworkManager prompting for WiFi password)
-  security.pam.services.sddm.enableKwallet = true;
+  # Auto-unlock GNOME Keyring on SDDM login (allows NetworkManager to access WiFi credentials)
+  security.pam.services.sddm.enableGnomeKeyring = true;
+  services.gnome.gnome-keyring.enable = true;
 
   # Services
   services.printing.enable = true;
