@@ -3,9 +3,10 @@ from dataclasses import asdict
 from typing import Protocol
 
 from rich.cells import cell_len
-from rich.console import Console
+from rich.console import Console, Group
 from rich.panel import Panel
 from rich.rule import Rule
+from rich.table import Table
 from rich.text import Text
 
 from .config import Colors, Badges
@@ -156,11 +157,10 @@ class RichFormatter:
             body.append("  No data found\n", style="dim")
 
         wk_url = f"https://en.wiktionary.org/wiki/{entry.character}"
-        body.append("  ")
-        body.append("wiki", style=f"link {wk_url} dim")
-        body.append("\n")
+        badges.append("  ")
+        badges.append("🔗 wiki", style=f"link {wk_url} dim")
 
-        content = Text.assemble(badges, "\n\n", body) if badges else body
+        content = Text.assemble(badges, "\n\n", body)
         self.console.print(Panel(
             content,
             title=title,
