@@ -155,6 +155,11 @@ class RichFormatter:
         else:
             body.append("  No data found\n", style="dim")
 
+        wk_url = f"https://en.wiktionary.org/wiki/{entry.character}"
+        body.append("  ")
+        body.append("wiki", style=f"link {wk_url} dim")
+        body.append("\n")
+
         content = Text.assemble(badges, "\n\n", body) if badges else body
         self.console.print(Panel(
             content,
