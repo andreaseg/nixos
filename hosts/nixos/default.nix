@@ -97,11 +97,19 @@
       buildPhase = ''
         python3 -c "
         from fontTools.ttLib.ttCollection import TTCollection
+
+        faces = {
+          'SourceHanMono-Regular.otf':   30,
+          'SourceHanMono-Italic.otf':    31,
+          'SourceHanMono-Bold.otf':      50,
+          'SourceHanMono-BoldItalic.otf': 51,
+        }
+
         tc = TTCollection('$src/share/fonts/opentype/source-han-mono/SourceHanMono.ttc')
-        tc[30].save('SourceHanMono-Regular.otf')
-        tc[31].save('SourceHanMono-Italic.otf')
-        tc[50].save('SourceHanMono-Bold.otf')
-        tc[51].save('SourceHanMono-BoldItalic.otf')
+        for filename, index in faces.items():
+            font = tc[index]
+            font['post'].isFixedPitch = 1
+            font.save(filename)
         "
       '';
       installPhase = ''
