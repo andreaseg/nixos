@@ -40,7 +40,7 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family = "Noto Sans Mono CJK JP";
+      font_family = "Sarasa Mono J";
       font_size   = "11.0";
 
       # Black

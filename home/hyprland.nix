@@ -197,7 +197,7 @@
     };
     style = ''
       * {
-        font-family: "Noto Sans Mono CJK JP", "Symbols Nerd Font", sans-serif;
+        font-family: "Sarasa Mono J", "Symbols Nerd Font", sans-serif;
         font-size: 13px;
       }
 
