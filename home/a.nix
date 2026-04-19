@@ -12,17 +12,18 @@
   home.homeDirectory = "/home/a";
 
   home.packages = with pkgs; [
-    google-chrome
-    mpv
-    pavucontrol
-    nerd-fonts.symbols-only
-    python3
-    glow
-    gnumake
-    bat
-    hyprpicker
-    xfce.thunar
-    kanagawa-gtk-theme
+    google-chrome          # Web browser
+    mpv                    # Video player
+    pavucontrol            # PipeWire/PulseAudio volume control GUI
+    nerd-fonts.symbols-only # Icon glyphs for terminal/waybar
+    python3                # Python runtime
+    glow                   # Markdown renderer for the terminal
+    gnumake                # Build tool
+    bat                    # Better cat with syntax highlighting
+    hyprpicker             # Color picker for Wayland
+    xfce.thunar            # File manager
+    kanagawa-gtk-theme     # GTK theme matching the Kanagawa color scheme
+    imv                    # Minimal Wayland image viewer
   ];
 
   home.pointerCursor = {
@@ -117,5 +118,17 @@
     };
   };
 
-home.stateVersion = "25.11";
+  xdg.mimeApps = {
+    enable = true;
+    defaultApplications = {
+      "image/jpeg" = "imv.desktop";
+      "image/png"  = "imv.desktop";
+      "image/gif"  = "imv.desktop";
+      "image/webp" = "imv.desktop";
+      "image/bmp"  = "imv.desktop";
+      "image/tiff" = "imv.desktop";
+    };
+  };
+
+  home.stateVersion = "25.11";
 }
