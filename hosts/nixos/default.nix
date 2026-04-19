@@ -89,6 +89,26 @@
   # Fonts
   fonts.packages = with pkgs; [
     sarasa-gothic
+    (stdenv.mkDerivation {
+      pname = "source-han-mono-jp";
+      version = "1.002";
+      src = source-han-mono;
+      nativeBuildInputs = [ python3Packages.fonttools ];
+      buildPhase = ''
+        python3 -c "
+        from fontTools.ttLib.ttCollection import TTCollection
+        tc = TTCollection('$src/share/fonts/opentype/source-han-mono/SourceHanMono.ttc')
+        tc[30].save('SourceHanMono-Regular.otf')
+        tc[31].save('SourceHanMono-Italic.otf')
+        tc[50].save('SourceHanMono-Bold.otf')
+        tc[51].save('SourceHanMono-BoldItalic.otf')
+        "
+      '';
+      installPhase = ''
+        mkdir -p $out/share/fonts/opentype/source-han-mono-jp
+        cp *.otf $out/share/fonts/opentype/source-han-mono-jp/
+      '';
+    })
   ];
 
   # Packages
