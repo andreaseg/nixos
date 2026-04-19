@@ -228,12 +228,12 @@
       }
 
       #battery {
-        color: #98BB6C; /* springGreen */
+        color: #DCD7BA; /* fujiWhite */
         padding: 0 10px;
       }
 
       #pulseaudio {
-        color: #FFA066; /* surimiOrange */
+        color: #DCD7BA; /* fujiWhite */
         padding: 0 10px;
       }
 
