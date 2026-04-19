@@ -111,7 +111,7 @@
         "$mod, F, fullscreen"
 
         # Split ratios
-        "$mod, U, splitratio, exact 0.75"
+        "$mod, U, splitratio, exact 1.0"
         "$mod, I, splitratio, exact 0.66"
         "$mod, O, splitratio, exact 0.5"
 
