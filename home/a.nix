@@ -41,7 +41,7 @@
       cursor                = "#C8C093";
       cursor_text_color     = "#1F1F28";
 
-      font_family = "Source Han Mono JP";
+      font_family = "Source Han Mono";
       font_size   = "11.0";
 
       # Black
