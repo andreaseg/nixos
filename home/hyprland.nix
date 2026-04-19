@@ -240,6 +240,11 @@
       #tray {
         padding: 0 10px;
       }
+
+      #tray > widget {
+        -gtk-icon-style: symbolic;
+        color: #DCD7BA; /* fujiWhite */
+      }
     '';
   };
 
